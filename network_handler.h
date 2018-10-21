@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include <iostream>
+#include <vector>
 
 class NetworkHandler {
 
@@ -33,17 +34,18 @@ public:
 
             reset_socket_set();
 
+            std::cout << "Waiting for activity on sockets" << std::endl;
             if(select(top_socket+1, &socket_set, NULL, NULL, &t) < 0) {
-                // TOOO: Throw exception
-                // Select failed
-                return;
+                error("Unable to select");
             }
-
-            std::cout << "Selected" << std::endl;
 
             if(FD_ISSET(control_socket, &socket_set)) {
                 std::cout << "Got a control request" << std::endl;
-                read_socket(control_socket);
+
+                // accept new connection and add to list
+                int client_socket = accept_socket(control_socket);
+                client_sockets.push_back(client_socket);
+                //read_socket(control_socket);
             }
 
             if(FD_ISSET(network_socket, &socket_set)) {
@@ -79,6 +81,7 @@ private:
     int network_socket;
     int info_port;
     int info_socket;
+    std::vector<int> client_sockets;
 
     int top_socket;
     fd_set socket_set;
@@ -104,8 +107,7 @@ private:
         int fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 
         if(fd < 0) {
-            // TODO: Throw exception
-            // Unable to open socket
+            error("Unable to open socket");
         }
 
         make_reusable(fd);
@@ -116,13 +118,11 @@ private:
         serv_addr.sin_port = htons(port);
 
         if(bind(fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-            // TODO: Throw exception
-            // Unable to bind socket
+            error("Unable to bind socket");
         }
 
         if(listen(fd, 1) < 0) {
-            // TODO: Throw exception
-            // Unable to listen to socket
+            error("Unable to listen on socket");
         }
 
         return fd;
@@ -136,8 +136,7 @@ private:
         int enable = 1;
 
         if(setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
-            // TODO: Throw exception
-            // could not modify socket
+            error("Unable to modify socket");
         }
     }
 
@@ -145,30 +144,57 @@ private:
         FD_ZERO(&socket_set);
 
         // TODO reset client sockets
+        for(auto client_socket : client_sockets) {
+            if(client_socket > 0) {
+                FD_SET(client_socket, &socket_set);
+            }
+        }
 
         // Reset server sockets
         if(control_socket > 0) {
             FD_SET(control_socket, &socket_set);
         }
         else {
-            // TODO: Throw exception
-            // control_socket invalid
+            error("Invalid control socket");
         }
 
         if(network_socket > 0) {
             FD_SET(network_socket, &socket_set);
         }
         else {
-            // TODO: Throw exception
-            // network_socket invalid
+            error("Invalid network socket");            
         }
 
         if(info_socket > 0) {
             FD_SET(info_socket, &socket_set);
         }
         else {
-            // TODO: Throw exception
-            // info_socket invalid
+            //error("Invalid info socket");            
         }
+    }
+
+    int accept_socket(int socket) {
+        // setup client address info
+        socklen_t clilen;
+        struct sockaddr_in cli_addr;
+        bzero((char *) &cli_addr, sizeof(cli_addr));
+        clilen = sizeof(cli_addr);
+
+        return accept(socket, (struct sockaddr *) &cli_addr, &clilen);
+    }
+
+    void close_socket(int fd) {
+        if (fd >= 0) {
+            if (close(fd) < 0) {
+                error("Unable to close socket");
+            }
+
+            std::cout << "Socket: " << fd << " closed" << std::endl;
+        }
+    }
+
+    void error(const char *msg) {
+        perror(msg);
+        exit(0);
     }
 };
