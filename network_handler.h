@@ -12,7 +12,7 @@
 class NetworkHandler {
 
 public:
-    NetworkHandler(int control_port=4055, int network_port=4044, int info_port=4045) {
+    NetworkHandler(int network_port, int info_port, int control_port=4055) {
         this->control_port = control_port;
         this->network_port = network_port;
         this->info_port = info_port;
@@ -42,19 +42,25 @@ public:
             if(FD_ISSET(control_socket, &socket_set)) {
                 std::cout << "Got a control request" << std::endl;
 
-                // accept new connection and add to list
-                int client_socket = accept_socket(control_socket);
+                int client_socket = accept_connection(control_socket);
                 client_sockets.push_back(client_socket);
-                //read_socket(control_socket);
             }
 
             if(FD_ISSET(network_socket, &socket_set)) {
                 std::cout << "Got a network request" << std::endl;
-                read_socket(network_socket);
+
+                int client_socket = accept_connection(network_socket);
+                client_sockets.push_back(client_socket);
             }
 
             if(FD_ISSET(info_socket, &socket_set)) {
                 std::cout << "Got an info request" << std::endl;
+
+                std::string buffer = read_socket(info_socket);
+
+                // TODO move to method
+                std::string response = "kiss ma dick";
+                write(info_socket, response.c_str(), response.length());
             }
         }
     }
@@ -129,7 +135,25 @@ private:
     }
 
     int setup_udp(int port) {
-        return -1;
+        struct sockaddr_in serv_addr;
+        int fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+        if(fd < 0) {
+            error("Unable to open socket");
+        }
+
+        make_reusable(fd);
+
+        bzero((char *) &serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_addr.s_addr = INADDR_ANY;
+        serv_addr.sin_port = htons(port);
+
+        if(bind(fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+            error("Unable to bind socket");
+        }
+
+        return fd;
     }
 
     void make_reusable(int socket) {
@@ -143,7 +167,7 @@ private:
     void reset_socket_set() {
         FD_ZERO(&socket_set);
 
-        // TODO reset client sockets
+        // Reset client sockets
         for(auto client_socket : client_sockets) {
             if(client_socket > 0) {
                 FD_SET(client_socket, &socket_set);
@@ -169,11 +193,11 @@ private:
             FD_SET(info_socket, &socket_set);
         }
         else {
-            //error("Invalid info socket");            
+            error("Invalid info socket");            
         }
     }
 
-    int accept_socket(int socket) {
+    int accept_connection(int socket) {
         // setup client address info
         socklen_t clilen;
         struct sockaddr_in cli_addr;
