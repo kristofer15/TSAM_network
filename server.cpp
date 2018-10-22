@@ -17,3 +17,19 @@ int main(int argc, char* argv[]) {
 
     handler.monitor_sockets();
 }
+
+int generate_key(std::string& role) {
+
+    if(role == "control") {
+        return 0b100;
+    }
+    else if(role == "network") {
+        return 0b010;
+    }
+    else if(role == "info") {
+        return 0b001;
+    }
+    else {
+        return 0b000;
+    }
+}
