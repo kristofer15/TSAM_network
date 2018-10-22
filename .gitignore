@@ -1,3 +1,5 @@
 bin
 .vscode
 *.pdf
+.skeluser
+.skeladdress
