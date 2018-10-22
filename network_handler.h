@@ -34,7 +34,6 @@ public:
 
             reset_socket_set();
 
-            std::cout << "Waiting for activity on sockets" << std::endl;
             if(select(top_socket+1, &socket_set, NULL, NULL, &t) < 0) {
                 error("Unable to select");
             }
@@ -102,10 +101,6 @@ private:
 
         top_socket = std::max(control_socket, network_socket);
         top_socket = std::max(top_socket, info_socket);
-
-        std::cout << control_socket << std::endl;
-        std::cout << network_socket << std::endl;
-        std::cout << info_socket << std::endl;
     }
 
     int setup_tcp(int port) {
