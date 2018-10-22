@@ -8,6 +8,10 @@
 
 #include <iostream>
 #include <vector>
+#include <map>
+#include <algorithm>
+
+#include "message_parser.h"
 
 class NetworkHandler {
 
@@ -16,6 +20,12 @@ public:
         this->control_port = control_port;
         this->network_port = network_port;
         this->info_port = info_port;
+
+        // Connected clients
+        this->client_sockets["control"] = std::vector<int>();
+        this->client_sockets["network"] = std::vector<int>();
+        this->client_sockets["info"] = std::vector<int>();
+
         this->keep_running = true;
         this->control_socket = -1;
         this->network_socket = -1;
@@ -23,6 +33,9 @@ public:
         this->top_socket = -1;
 
         setup_sockets();
+    }
+
+    ~NetworkHandler() {
     }
 
     void monitor_sockets() {
@@ -38,18 +51,20 @@ public:
                 error("Unable to select");
             }
 
+            // 3 Ports that allow connections
+            // Your role is determined by which port you connected through
             if(FD_ISSET(control_socket, &socket_set)) {
                 std::cout << "Got a control request" << std::endl;
 
                 int client_socket = accept_connection(control_socket);
-                client_sockets.push_back(client_socket);
+                client_sockets["control"].push_back(client_socket);
             }
 
             if(FD_ISSET(network_socket, &socket_set)) {
                 std::cout << "Got a network request" << std::endl;
 
                 int client_socket = accept_connection(network_socket);
-                client_sockets.push_back(client_socket);
+                client_sockets["network"].push_back(client_socket);
             }
 
             if(FD_ISSET(info_socket, &socket_set)) {
@@ -58,21 +73,20 @@ public:
                 std::string buffer = read_socket(info_socket);
 
                 // TODO move to method
-                std::string response = "kiss ma dick";
+                std::string response = "";
                 write(info_socket, response.c_str(), response.length());
             }
+
+            // Get messages from all clients
+            for(auto socket_type : {"control", "network", "info"}) {
+                for(int client_socket : client_sockets[socket_type]) {
+
+                    if(FD_ISSET(client_socket, &socket_set)) {
+                        Command command = message_parser.parse(socket_type, read_socket(client_socket));
+                    }
+                }
+            }
         }
-    }
-
-    std::string read_socket(int socket) {
-        char buffer[256];
-        bzero(buffer, 256);
-
-        if(read(socket, buffer, 255) <= 0) {   
-            // TODO: deal with nonsignals
-        }
-
-        return buffer;
     }
 
     void stop() {
@@ -86,13 +100,14 @@ private:
     int network_socket;
     int info_port;
     int info_socket;
-    std::vector<int> client_sockets;
+    std::map<std::string, std::vector<int>> client_sockets;
 
     int top_socket;
     fd_set socket_set;
 
-    int keep_running;
+    bool keep_running;
 
+    MessageParser message_parser;
     
     void setup_sockets() {
         control_socket = setup_tcp(control_port);
@@ -163,9 +178,11 @@ private:
         FD_ZERO(&socket_set);
 
         // Reset client sockets
-        for(auto client_socket : client_sockets) {
-            if(client_socket > 0) {
-                FD_SET(client_socket, &socket_set);
+        for(auto socket_type : {"control", "network", "info"}) {
+            for(int client_socket : client_sockets[socket_type]) {
+                if(client_socket > 0) {
+                    FD_SET(client_socket, &socket_set);
+                }
             }
         }
 
@@ -199,7 +216,31 @@ private:
         bzero((char *) &cli_addr, sizeof(cli_addr));
         clilen = sizeof(cli_addr);
 
-        return accept(socket, (struct sockaddr *) &cli_addr, &clilen);
+        int client_socket = accept(socket, (struct sockaddr *) &cli_addr, &clilen);
+        top_socket = std::max(client_socket, top_socket);
+        return client_socket;
+    }
+
+    void remove_client(int socket) {
+        close_socket(socket);
+
+        // Remove client fd. Take care not to deep copy the vector.
+        for(auto socket_type : {"control", "network", "info"}) {
+            auto *v = &client_sockets[socket_type];
+            v->erase(std::remove(v->begin(), v->end(), socket), v->end());
+        }
+    }
+
+    std::string read_socket(int socket) {
+        char buffer[256];
+        bzero(buffer, 256);
+
+        if(read(socket, buffer, 255) <= 0) {  
+            std::cout << "Client disconnected" << std::endl;
+            remove_client(socket);
+        }
+
+        return buffer;
     }
 
     void close_socket(int fd) {
@@ -207,8 +248,6 @@ private:
             if (close(fd) < 0) {
                 error("Unable to close socket");
             }
-
-            std::cout << "Socket: " << fd << " closed" << std::endl;
         }
     }
 
