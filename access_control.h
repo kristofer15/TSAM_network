@@ -20,7 +20,7 @@ public:
 
     bool permit(std::string role, std::string command) {
         int k = generate_key(role);
-        return k & locks[command];
+        return k & locks[command] ? true : false;
     }
 
 
