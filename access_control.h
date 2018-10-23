@@ -6,6 +6,7 @@ class AccessControl {
 public:
     AccessControl() {
         locks["LISTSERVERS"] = 0b111;
+        locks["ID"] = 0b110;
         locks["CONNECT"] = 0b110;
         locks["WHO"] = 0b110;
         locks["MSG"] = 0b110;

@@ -18,9 +18,14 @@ class NetworkHandler {
 public:
 
     struct Command {
-        // from/to?
+        int from;
         std::string role;
         std::vector<std::string> tokens;
+    };
+
+    struct Message {
+        int to;
+        std::string message;
     };
 
     NetworkHandler(int network_port, int info_port, int control_port=4055) {
@@ -89,6 +94,7 @@ public:
             for(int client_socket : client_sockets[socket_type]) {
 
                 if(FD_ISSET(client_socket, &socket_set)) {
+                    command.from = client_socket;
                     command.role = socket_type;
                     command.tokens = message_parser.tokenize(read_socket(client_socket));
 
@@ -99,6 +105,11 @@ public:
         }
 
         return command;
+    }
+
+    void message(Message m) {
+        m.message += '\n';
+        write(m.to, m.message.c_str(), m.message.length());
     }
 
     void stop() {
