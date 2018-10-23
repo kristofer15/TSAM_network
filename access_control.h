@@ -15,6 +15,7 @@ public:
         locks["LISTROUTES"] = 0b110;
         locks["CMD"] = 0b110;
         locks["FETCH"] = 0b110;
+        locks["SHUTDOWN"] = 0b100;
     }
 
     ~AccessControl() {}
