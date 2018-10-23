@@ -6,7 +6,7 @@ class MainController {
 public:
     MainController(NetworkHandler &network, UserHandler &users, AccessControl &access) :
         network(network), users(users), access(access) {
-            this->server_id = "V_Project_3 51";
+            this->server_id = "V_Group_51";
             md5 = {"1", "2", "3", "4", "5"};
     }
 
