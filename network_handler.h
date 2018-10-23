@@ -108,12 +108,19 @@ public:
     }
 
     void message(Message m) {
-        m.message += '\n';
+        char start = 1; // SOH
+        char end = 4;   // EOT
+
+        m.message = start + m.message + end;
         write(m.to, m.message.c_str(), m.message.length());
     }
 
     void stop() {
         keep_running = false;
+    }
+
+    void heartbeat() {
+
     }
 
 private:
