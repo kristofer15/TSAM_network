@@ -16,6 +16,13 @@
 class NetworkHandler {
 
 public:
+
+    struct Command {
+        // from/to?
+        std::string role;
+        std::vector<std::string> tokens;
+    };
+
     NetworkHandler(int network_port, int info_port, int control_port=4055) {
         this->control_port = control_port;
         this->network_port = network_port;
@@ -35,58 +42,63 @@ public:
         setup_sockets();
     }
 
-    ~NetworkHandler() {
-    }
+    ~NetworkHandler() {}
 
-    void monitor_sockets() {
+    Command get_message() {
         keep_running = true;
         struct timeval t;
 
-        while(keep_running) {
-            t.tv_sec = 10;
+        Command command;
 
-            reset_socket_set();
+        t.tv_sec = 10;
+        reset_socket_set();
 
-            if(select(top_socket+1, &socket_set, NULL, NULL, &t) < 0) {
-                error("Unable to select");
-            }
+        if(select(top_socket+1, &socket_set, NULL, NULL, &t) < 0) {
+            error("Unable to select");
+        }
 
-            // 3 Ports that allow connections
-            // Your role is determined by which port you connected through
-            if(FD_ISSET(control_socket, &socket_set)) {
-                std::cout << "Got a control request" << std::endl;
+        // 3 Ports that allow connections
+        // Your role is determined by which port you connected through
+        if(FD_ISSET(control_socket, &socket_set)) {
+            std::cout << "Got a control request" << std::endl;
 
-                int client_socket = accept_connection(control_socket);
-                client_sockets["control"].push_back(client_socket);
-            }
+            int client_socket = accept_connection(control_socket);
 
-            if(FD_ISSET(network_socket, &socket_set)) {
-                std::cout << "Got a network request" << std::endl;
+            client_sockets["control"].push_back(client_socket);
+        }
 
-                int client_socket = accept_connection(network_socket);
-                client_sockets["network"].push_back(client_socket);
-            }
+        if(FD_ISSET(network_socket, &socket_set)) {
+            std::cout << "Got a network request" << std::endl;
 
-            if(FD_ISSET(info_socket, &socket_set)) {
-                std::cout << "Got an info request" << std::endl;
+            int client_socket = accept_connection(network_socket);
+            client_sockets["network"].push_back(client_socket);
+        }
 
-                std::string buffer = read_socket(info_socket);
+        if(FD_ISSET(info_socket, &socket_set)) {
+            std::cout << "Got an info request" << std::endl;
 
-                // TODO move to method
-                std::string response = "";
-                write(info_socket, response.c_str(), response.length());
-            }
+            std::string buffer = read_socket(info_socket);
 
-            // Get messages from all clients
-            for(auto socket_type : {"control", "network", "info"}) {
-                for(int client_socket : client_sockets[socket_type]) {
+            // TODO move to method
+            std::string response = "";
+            write(info_socket, response.c_str(), response.length());
+        }
 
-                    if(FD_ISSET(client_socket, &socket_set)) {
-                        Command command = message_parser.parse(socket_type, read_socket(client_socket));
-                    }
+        // Get messages from all clients
+        for(auto socket_type : {"control", "network", "info"}) {
+            for(int client_socket : client_sockets[socket_type]) {
+
+                if(FD_ISSET(client_socket, &socket_set)) {
+                    command.role = socket_type;
+                    command.tokens = message_parser.tokenize(read_socket(client_socket));
+
+                    // TODO: Multithreading and command queues
+                    return command;
                 }
             }
         }
+
+        return command;
     }
 
     void stop() {

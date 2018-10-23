@@ -5,15 +5,10 @@
 class MessageParser {
 
 public:
-    struct Command {
-        // from/to?
-        std::string role;
-        std::vector<std::string> tokens;
-    };
 
     MessageParser() { }
 
-    Command parse(const std::string role, std::string message) {
+    std::vector<std::string> tokenize(std::string message) {
         std::stringstream stream(message);
         std::string token;
         std::vector<std::string> tokens;
@@ -23,10 +18,6 @@ public:
             tokens.push_back(token);
         }
 
-        Command command;
-        command.role = role;
-        command.tokens = tokens;
-
-        return command;
+        return tokens;
     }
 };

@@ -1,10 +1,33 @@
 #include "network_handler.h"
+#include "access_control.h"
+
+// Less typing
+typedef NetworkHandler::Command Command;
 
 void help(std::string file_name="server") {
     std::cout << "Usage:" << std::endl
               << file_name << " {TCP PORT} {UDP PORT}" << std::endl;
 }
 
+void match_command(Command &command) {
+    std::string c = command.tokens[0];
+
+    if(c == "CONNECT") {
+
+    } 
+    else if(c == "WHO") {
+
+    }
+    else if(c == "MSG") {
+
+    }
+    else if(c == "LEAVE") {
+
+    }
+    else {
+        std::cout << "Command not recognized" << std::endl;
+    }
+}
 
 int main(int argc, char* argv[]) {
 
@@ -14,22 +37,18 @@ int main(int argc, char* argv[]) {
     }
 
     NetworkHandler handler(atoi(argv[1]), atoi(argv[2]));
+    AccessControl access;
 
-    handler.monitor_sockets();
-}
+    while(true) {
+        NetworkHandler::Command command = handler.get_message();
 
-int generate_key(std::string& role) {
+        if(command.tokens.size() <= 0 || command.role == "") {
+            continue;
+        }
 
-    if(role == "control") {
-        return 0b100;
-    }
-    else if(role == "network") {
-        return 0b010;
-    }
-    else if(role == "info") {
-        return 0b001;
-    }
-    else {
-        return 0b000;
+        if(access.permit(command.role, command.tokens[0])) {
+            std::cout << "Access granted" << std::endl;
+            match_command(command);
+        }
     }
 }
