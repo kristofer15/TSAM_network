@@ -261,6 +261,7 @@ private:
         if(read(socket, buffer, 255) <= 0) {  
             std::cout << "Client disconnected" << std::endl;
             remove_client(socket);
+            return "LEAVE";
         }
 
         return buffer;
