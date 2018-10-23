@@ -1,3 +1,5 @@
+#include <sys/time.h>
+
 // Less typing
 typedef NetworkHandler::Command Command;
 typedef NetworkHandler::Message Message;
@@ -24,11 +26,20 @@ public:
     }
 
 private:
+
+    struct Response {
+        long int timestamp;
+        std::vector<std::string> sent_tokens;
+        std::vector<std::string> received_tokens;
+    };
+
     NetworkHandler network;
     UserHandler users;
     AccessControl access;
     std::string server_id;
     std::vector<std::string> md5;
+
+    std::map<int, Response> responses;
 
     void match_command(Command &command) {
         std::string c = command.tokens[0];
@@ -160,6 +171,14 @@ private:
 
             network.message(m);
             return;
+        }
+        else if(c == "CMD") {
+            // SPECIAL. Requires a response
+
+            // If token 1 is not a known server ID, assume that it is a command meant for us
+
+
+            // Commands meant for us need to be stored so a response is handled properly
         }
         else {  // Don't go here. Validate first.
             std::cout << "Command not implemented" << std::endl;

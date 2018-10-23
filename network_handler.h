@@ -28,6 +28,12 @@ public:
         std::string message;
     };
 
+    struct Server {
+        int socket;
+        std::string IP;
+        int port;
+    };
+
     NetworkHandler(int network_port, int info_port, int control_port=4055) {
         this->control_port = control_port;
         this->network_port = network_port;
@@ -77,6 +83,8 @@ public:
 
             int client_socket = accept_connection(network_socket);
             client_sockets["network"].push_back(client_socket);
+
+            // TODO: Track connected server
         }
 
         if(FD_ISSET(info_socket, &socket_set)) {
@@ -84,7 +92,6 @@ public:
 
             std::string buffer = read_socket(info_socket);
 
-            // TODO move to method
             std::string response = "";
             write(info_socket, response.c_str(), response.length());
         }
@@ -131,10 +138,10 @@ private:
     int info_port;
     int info_socket;
     std::map<std::string, std::vector<int>> client_sockets;
-
     int top_socket;
     fd_set socket_set;
 
+    std::map<std::string, Server> known_servers;    //Keys: Server ID - Values: Server structs
     bool keep_running;
 
     MessageParser message_parser;
@@ -282,6 +289,15 @@ private:
         }
     }
 
+    Server get_server(std::string id) {
+        return known_servers[id];
+    }
+
+    std::map<std::string, Server> get_servers() {
+        return known_servers;
+    }
+
+    // TODO: Remove
     void error(const char *msg) {
         perror(msg);
         exit(0);

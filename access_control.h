@@ -16,6 +16,7 @@ public:
         locks["CMD"] = 0b110;
         locks["FETCH"] = 0b110;
         locks["SHUTDOWN"] = 0b100;
+        locks["ADDSERVER"] = 0b100;
     }
 
     ~AccessControl() {}
