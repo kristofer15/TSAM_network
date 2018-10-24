@@ -154,7 +154,8 @@ private:
             network.message(m);
             return;
         }
-        else if(c == "LISTSERVERS") {            
+        else if(c == "LISTSERVERS") {
+            // TODO how to work for both tcp and udp?           
             m.to = command.from;
             m.message = "";
             for(auto const& server: network.get_servers()) {
@@ -166,6 +167,7 @@ private:
             return;
         }
         else if(c == "ADDSERVER") {
+            // TODO responsibility of main controller concering adding servers
             m.to = command.from;
 
             if(command.tokens.size() == 3) {

@@ -91,6 +91,8 @@ public:
         if(FD_ISSET(info_socket, &socket_set)) {
             std::cout << "Got an info request" << std::endl;
 
+            // TODO abstract from get_message()
+
             socklen_t clilen;
             struct sockaddr_in cli_addr;
             bzero((char *) &cli_addr, sizeof(cli_addr));
