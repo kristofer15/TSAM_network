@@ -3,6 +3,7 @@
 // Less typing
 typedef NetworkHandler::Command Command;
 typedef NetworkHandler::Message Message;
+typedef NetworkHandler::Server Server;
 
 class MainController {
 public:
@@ -150,6 +151,40 @@ private:
         else if(c == "ID") {
             m.to = command.from;
             m.message = server_id;
+            network.message(m);
+            return;
+        }
+        else if(c == "LISTSERVERS") {            
+            m.to = command.from;
+            m.message = "";
+            for(auto const& server: network.get_servers()) {
+                m.message += server.first + ","                 + 
+                             server.second.IP + ","             +
+                             std::to_string(server.second.port) + ";\n";   
+            }
+            network.message(m);
+            return;
+        }
+        else if(c == "ADDSERVER") {
+            m.to = command.from;
+
+            if(command.tokens.size() == 3) {
+                Server server = {-1, command.tokens[1], stoi(command.tokens[2])};
+                
+                if(network.connect_to_server(server)){
+                    m.message = "Successfully connected to: " + 
+                                server.IP + " "               + 
+                                std::to_string(server.port) + "\n";
+                }
+                else {
+                    m.message = "Unable to connect server\n"; 
+                }
+            }
+            else {
+                m.message = "Invalid number of arguments\n";
+                
+            }
+
             network.message(m);
             return;
         }
