@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    NetworkHandler network(atoi(argv[1]), atoi(argv[2]));
+    NetworkHandler network(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
     UserHandler users;
     AccessControl access;
 
