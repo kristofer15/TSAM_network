@@ -46,8 +46,15 @@ private:
         std::string c = command.tokens[0];
         Message m;
 
+        //std::cout << "role: " << command.role << ", command: " << c << std::endl;
+        // for (size_t i = 0; i < c.length(); i++)
+            //printf("%c --> %d\n",c[i],c[i]);
+                // if (c[i] == '\n')
+                //     std::cout << "found" << std::endl;
+
         // Check if the command token is whitelisted for this role
         if(!access.permit(command.role, command.tokens[0])) {
+            //std::cout << "Not permitted" << std::endl;
             Message m;
             m.to = command.from;
             m.message = "Operation not permitted/recognized";
@@ -151,6 +158,8 @@ private:
         else if(c == "ID") {
             m.to = command.from;
             m.message = server_id;
+
+            std::cout << m.to << std::endl;
             network.message(m);
             return;
         }

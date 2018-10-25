@@ -106,8 +106,7 @@ public:
                     command.from = client_socket;
                     command.role = socket_type;
                     command.tokens = message_parser.tokenize(read_socket(client_socket));
-
-                    // std::cout << command.tokens[0] << std::endl;
+                    
                     return command;
                 }
             }
@@ -150,9 +149,7 @@ public:
         struct hostent *destination;
 
         destination = gethostbyname(server.IP.c_str());
-        if(destination == NULL) {
-            return false;
-        }
+        if(destination == NULL) { return false; }
 
         bzero((char *) &destination_in, sizeof(destination_in));
 
@@ -164,8 +161,8 @@ public:
         destination->h_length);
 
         int server_socket = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+        make_reusable(server_socket);
         
-
         connect(server_socket, (struct sockaddr *) &destination_in, sizeof(destination_in));
  
         int error_code;
@@ -173,16 +170,15 @@ public:
         getsockopt(server_socket, SOL_SOCKET, SO_ERROR, &error_code, &error_code_size);
         
         // Socket is not connected
-        if(error_code == 111) {
-            return false;
-        }
+        if(error_code == 111) { return false; }
 
         client_sockets["network"].push_back(server_socket);
+        top_socket = std::max(server_socket, top_socket);
+        
+        Message m = {server_socket, "ID"};
+        message(m);
 
         known_servers[server_socket] = server;
-        
-        // Message m {server_socket, "ID"};
-        // message(m);
         
         return true;
     }
@@ -354,7 +350,20 @@ private:
             return "LEAVE";
         }
 
-        return buffer;
+        return trim_newline(buffer);
+    }
+
+    std::string trim_newline(std::string s) {
+        std::string trimmed = s;
+        while(trimmed[trimmed.length()-1] == '\n') {
+            trimmed.erase(trimmed.length()-1);
+        }
+
+        if((int)trimmed[0] == 1){
+            trimmed.erase(0);
+        };
+
+        return trimmed;
     }
 
     void close_socket(int fd) {
