@@ -254,7 +254,7 @@ private:
 
                 m.to = command.from;
 
-                m.message = "RSP," + command.tokens[1] + "," + server_id + "," + handle_command(delegate);
+                m.message = "RSP," + command.tokens[2] + "," + server_id + "," + handle_command(delegate);
                 network.message(m);
                 return m.message;
 
