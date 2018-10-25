@@ -232,7 +232,7 @@ private:
     int top_socket;
     fd_set socket_set;
 
-    std::map<int, Server> known_servers;    //Keys: Server ID - Values: Server structs
+    std::map<int, Server> known_servers;    //Keys: Server fd - Values: Server structs
     bool keep_running;
 
     MessageParser message_parser;

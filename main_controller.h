@@ -259,34 +259,11 @@ private:
                 return m.message;
 
             }
-            else {
 
-                // Forward the message
-                Server target = network.find_server(command.tokens[1]);
-                if(target.id != "") {
-
-                    // We don't have a direct connection
-                    if(target.distance > 1) {
-                        m.to = network.find_server(target.intermediates[0]).socket;
-                    }
-
-                    m.to = target.socket;
-                    m.message = command.raw;
-                    network.message(m);
-                    return "Message delegated";
-                }
-                else {
-                    return "Target server not found";
-                }
-            }
+            return forward_command(command);
         }
         else if(c == "RSP") {
-            // Responses intended for us are indicated with 3 tokens or
-            // 4 tokens where the second is our ID
-            if(command.tokens.size() == 3 || (command.tokens.size() == 4 && command.tokens[1] == server_id)) {
-                handle_response(command);
-            }
-            else if(command.tokens.size() != 4) {
+            if(command.tokens.size() < 4) {
                 m.to = command.from;
                 m.message = "Invalid number of arguments";
                 network.message(m);
@@ -295,8 +272,12 @@ private:
                 return m.message;
             }
 
-            // TODO: Forward 
-            return "Response procesed";
+            // Commands intended for are indicated with our ID or no id in the second field
+            if(command.tokens[1] == "" || command.tokens[1] == server_id) {
+                return handle_response(command);
+            }
+
+            return forward_command(command);
         }
         else {  // Don't go here. Validate first.
             std::cout << "Command not implemented" << std::endl;
@@ -304,12 +285,36 @@ private:
         }
     }
 
+    std::string forward_command(Command &command) {
+        Message m;
+
+        // Forward the message
+        Server target = network.find_server(command.tokens[1]);
+        if(target.id != "") {
+
+            // We don't have a direct connection
+            if(target.distance > 1) {
+                // Delegate to the first intermediate (1-hop)
+                m.to = network.find_server(target.intermediates[0]).socket;
+            }
+
+            m.to = target.socket;
+            m.message = command.raw;
+            network.message(m);
+            return "Message delegated";
+        }
+        else {
+            return "Target server not found";
+        }
+    }
+
     bool awaiting_response_from(int fd) {
         return responses.count(fd) ? true : false;
     }
 
-    void handle_response(Command &command) {
+    std::string handle_response(Command &command) {
         std::string c = responses[command.from].sent_tokens[0];        
         std::cout << "RECEIVED RESPONSE" << std::endl;
+        return "RECEIVED RESPONSE";
     }
 };
