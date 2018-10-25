@@ -117,6 +117,18 @@ public:
                     if(command.raw.find(',') != std::string::npos) {
                         command.tokens = message_parser.tokenize(command.raw, ',');
                         command.delegate_tokens = message_parser.tokenize(command.tokens.back(), ' ');
+
+                        // The delegate command appears to be comma delimited
+                        if(command.tokens.size() > 4 && command.delegate_tokens.size() == 1) {
+                            
+                            // Erase old delegate since it's probably just the last word in a multi word command
+                            std::vector<std::string> v;
+                            command.delegate_tokens = v;
+
+                            for(int i = 3; i < command.tokens.size(); i++) {
+                                command.delegate_tokens.push_back(command.tokens[i]);
+                            }
+                        }
                     }
                     else {
                         command.tokens = message_parser.tokenize(command.raw, ' ');

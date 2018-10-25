@@ -238,9 +238,15 @@ private:
         }
         else if(c == "CMD") {
 
-            // Commands intended for us are indicated wtih 3 tokens or
-            // 4 tokens where the second is our ID
-            if(command.tokens.size() == 3 || (command.tokens.size() == 4 && command.tokens[1] == server_id)) {
+            if(command.tokens.size() < 4) {
+                m.to = command.from;
+                m.message = "Invalid number of arguments";
+                network.message(m);
+                return m.message;
+            }
+
+            // Commands intended for are indicated with our ID or no id in the second field
+            if(command.tokens[1] == "" || command.tokens[1] == server_id) {
                 Command delegate;
                 delegate.from = -1;
                 delegate.role = "network";
@@ -253,24 +259,18 @@ private:
                 return m.message;
 
             }
-            else if(command.tokens.size() != 4) {
-                m.to = command.from;
-                m.message = "Invalid number of arguments";
-                network.message(m);
-                return m.message;
-            }
             else {
 
                 // Forward the message
                 Server target = network.find_server(command.tokens[1]);
                 if(target.id != "") {
-                    m.to = target.socket;
 
                     // We don't have a direct connection
                     if(target.distance > 1) {
                         m.to = network.find_server(target.intermediates[0]).socket;
                     }
 
+                    m.to = target.socket;
                     m.message = command.raw;
                     network.message(m);
                     return "Message delegated";
