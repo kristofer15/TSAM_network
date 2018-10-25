@@ -173,8 +173,6 @@ private:
             m.message = server_id;
             network.message(m);
 
-            std::cout << "ID command from: " << command.from << std::endl;
-
             return m.message;
         }
         else if(c == "LISTSERVERS") {
@@ -194,9 +192,7 @@ private:
             m.to = command.from;
 
             if(command.tokens.size() == 3) {
-                // TODO: connect_to_server should take address info and return a server struct
-                // TODO: Only succeed once ID has been returned. Needs to be async. Don't expect a response here
-                
+     
                 try {
                     std::string ip = command.tokens[1];
                     int port = stoi(command.tokens[2]);
@@ -204,21 +200,14 @@ private:
 
                     responses[server.socket] = {unix_timestamp(), {"ID"}, {}};
 
-                    Message demand_id = {server.socket, "CMD,,server_id,ID"};
-                    network.message(demand_id);
-
-                    m.message = "Successfully connected to: " + 
-                                server.ip + " "               + 
-                                std::to_string(server.port);
+                    m.to = server.socket;
+                    m.message = "CMD,,server_id,ID";
 
                 } catch (std::runtime_error msg) {
                     m.message = msg.what(); 
                 }     
             }
-            else {
-                m.message = "Invalid number of arguments";
-                
-            }
+            else { m.message = "Invalid number of arguments"; }
 
             network.message(m);
             return m.message;
