@@ -10,7 +10,7 @@ public:
     MainController(NetworkHandler &network, UserHandler &users, AccessControl &access) :
         network(network), users(users), access(access) {
             this->server_id = "V_Group_51";
-            md5 = {
+            this->md5 = {
                 "ca23ba209cc33678530392b7197fda4d",
                 "a3eaaf35761efa2a09437854e2caf4b3",
                 "f0f9b8ff2096179b21848c8ffeca7c10",
