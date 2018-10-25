@@ -378,12 +378,16 @@ private:
             return "LEAVE";
         }
 
-        return trim_newline(buffer);
+        return trim_message(buffer);
     }
 
-    std::string trim_newline(std::string s) {
+    std::string trim_message(std::string s) {
         std::string trimmed = s;
-        while(trimmed[trimmed.length()-1] == '\n') {
+
+        // Temporarily trimming transmission symbols
+        // Validate messages with them later
+
+        while(trimmed[trimmed.length()-1] == '\n' || trimmed[trimmed.length()-1] == 4) {
             trimmed.erase(trimmed.length()-1);
         }
 
