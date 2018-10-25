@@ -410,9 +410,9 @@ private:
             trimmed.erase(trimmed.length()-1);
         }
 
-        if((int)trimmed[0] == 1){
-            trimmed.erase(0);
-        };
+        // if(trimmed[0] == 1) {
+        //     trimmed.erase(trimmed[0]);
+        // }
 
         return trimmed;
     }

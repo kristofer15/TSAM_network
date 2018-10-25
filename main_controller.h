@@ -175,9 +175,7 @@ private:
             m.to = command.from;
 
             if(command.tokens.size() == 3) {
-                // TODO: connect_to_server should take address info and return a server struct
-                // TODO: Only succeed once ID has been returned. Needs to be async. Don't expect a response here
-                
+     
                 try {
                     std::string ip = command.tokens[1];
                     int port = stoi(command.tokens[2]);
@@ -192,10 +190,7 @@ private:
                     m.message = msg.what(); 
                 }     
             }
-            else {
-                m.message = "Invalid number of arguments";
-                
-            }
+            else { m.message = "Invalid number of arguments"; }
 
             network.message(m);
             return m.message;
