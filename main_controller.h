@@ -230,7 +230,6 @@ private:
             return m.message;
         }
         else if(c == "CMD") {
-            std::string response_message;
 
             // Commands intended for us are indicated wtih 3 tokens or
             // 4 tokens where the second is our ID
@@ -241,7 +240,11 @@ private:
                 delegate.tokens  = command.delegate_tokens;
 
                 m.to = command.from;
-                response_message = handle_command(delegate);
+
+                m.message = "RSP," + command.tokens[1] + "," + server_id + "," + handle_command(delegate);
+                network.message(m);
+                return m.message;
+
             }
             else if(command.tokens.size() != 4) {
                 m.to = command.from;
@@ -249,33 +252,26 @@ private:
                 network.message(m);
                 return m.message;
             }
-
-            // Forward the message
-            // Server target = network.find_server(command.tokens[1]);
-            Server target = network.get_servers()[0];
-            if(true) {
-                m.to = target.socket;
-
-                // We don't have a direct connection
-                if(target.distance > 1) {
-                    m.to = network.find_server(target.intermediates[0]).socket;
-                }
-
-                m.message = command.raw;
-                network.message(m);
-                return "Message delegated";
-            }
             else {
-                return "Target server not found";
+
+                // Forward the message
+                Server target = network.find_server(command.tokens[1]);
+                if(target.id != "") {
+                    m.to = target.socket;
+
+                    // We don't have a direct connection
+                    if(target.distance > 1) {
+                        m.to = network.find_server(target.intermediates[0]).socket;
+                    }
+
+                    m.message = command.raw;
+                    network.message(m);
+                    return "Message delegated";
+                }
+                else {
+                    return "Target server not found";
+                }
             }
-
-            m.message = "RSP," + command.tokens[1] + "," + server_id + "," + response_message; 
-            network.message(m);
-            return m.message;
-
-            // If token 1 is not a known server ID, assume that it is a command meant for us
-
-            // Commands meant for us need to be stored so a response is handled properly
         }
         else if(c == "RSP") {
             // Responses intended for us are indicated with 3 tokens or
