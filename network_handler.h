@@ -167,7 +167,7 @@ public:
         return known_servers;
     }
 
-    Server get_server(int socket) {
+    Server& get_server(int socket) {
         return known_servers[socket];
     }
 
