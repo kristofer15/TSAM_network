@@ -5,6 +5,7 @@
 #include <netinet/tcp.h>
 #include <netdb.h>
 #include <strings.h>
+#include <cstring>
 #include <unistd.h>
 
 #include <iostream>
@@ -92,27 +93,9 @@ public:
             std::cout << "Got an info request" << std::endl;
 
             // TODO abstract from get_message()
-
-            socklen_t clilen;
-            struct sockaddr_in cli_addr;
-            bzero((char *) &cli_addr, sizeof(cli_addr));
-            clilen = sizeof(cli_addr);
-
-            char buffer[256];
-            bzero(buffer, 256);
-
-            // read content into buffer from an incoming client
-		    int len = recvfrom(info_socket, buffer, sizeof(buffer), 0,
-		                   (struct sockaddr *)&cli_addr, &clilen);
-
-            std::string response = "";
-            for(auto const& server: known_servers) {
-                response += server.first + ","                  + 
-                             server.second.IP + ","             +
-                             std::to_string(server.second.port) + ";\n";   
-            }
-
-		    sendto(info_socket, response.c_str(), len, 0, (struct sockaddr *)&cli_addr, sizeof(cli_addr));
+            command.from = info_socket;
+            command.role = "info";
+            command.tokens = {"LISTSERVERS"};
         }
 
         // Get messages from all clients
@@ -138,7 +121,12 @@ public:
         char end = 4;   // EOT
 
         m.message = start + m.message + "\n" + end;
-        write(m.to, m.message.c_str(), m.message.length());
+        if(m.to == info_socket) {
+            echo_udp(m);
+        }
+        else {
+            write(m.to, m.message.c_str(), m.message.length());            
+        }
     }
 
     void stop() {
@@ -214,6 +202,25 @@ private:
     bool keep_running;
 
     MessageParser message_parser;
+
+    void echo_udp(const Message m) {
+        // client info
+        socklen_t clilen;
+        struct sockaddr_in cli_addr;
+        bzero((char *) &cli_addr, sizeof(cli_addr));
+        clilen = sizeof(cli_addr);
+
+        // need buffer purely as recvfrom argument
+        char buffer[256];
+        bzero(buffer, 256);
+
+        // recvfrom to fill clients info
+        int len = recvfrom(m.to, buffer, sizeof(buffer), 0,
+                       (struct sockaddr *)&cli_addr, &clilen);
+
+        sendto(m.to, m.message.c_str(), strlen(m.message.c_str()), 0, 
+            (struct sockaddr *)&cli_addr, sizeof(cli_addr));
+    }
     
     void setup_sockets() {
         control_socket = setup_tcp(control_port);

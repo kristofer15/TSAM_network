@@ -155,7 +155,7 @@ private:
             return;
         }
         else if(c == "LISTSERVERS") {
-            // TODO how to work for both tcp and udp?           
+
             m.to = command.from;
             m.message = "";
             for(auto const& server: network.get_servers()) {
@@ -163,7 +163,9 @@ private:
                              server.second.IP + ","             +
                              std::to_string(server.second.port) + ";";   
             }
+
             network.message(m);
+       
             return;
         }
         else if(c == "ADDSERVER") {
