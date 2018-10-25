@@ -191,7 +191,6 @@ private:
             return m.message;
         }
         else if(c == "ADDSERVER") {
-            // TODO responsibility of main controller concering adding servers
             m.to = command.from;
 
             if(command.tokens.size() == 3) {
