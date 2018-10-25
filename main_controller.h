@@ -10,7 +10,12 @@ public:
     MainController(NetworkHandler &network, UserHandler &users, AccessControl &access) :
         network(network), users(users), access(access) {
             this->server_id = "V_Group_51";
-            md5 = {"1", "2", "3", "4", "5"};
+            md5 = {
+                "ca23ba209cc33678530392b7197fda4d",
+                "a3eaaf35761efa2a09437854e2caf4b3",
+                "f0f9b8ff2096179b21848c8ffeca7c10",
+                "be5d5d37542d75f93a87094459f76678",
+                "6f96cfdfe5ccc627cadf24b41725caa4"};
     }
 
     ~MainController() {}
@@ -52,20 +57,22 @@ private:
                 // if (c[i] == '\n')
                 //     std::cout << "found" << std::endl;
      
-        bool awaited = awaiting_response_from(command.from);
-
         // Check if the command token is whitelisted for this role
-        if(!access.permit(command.role, command.tokens[0]) && !awaited) {
-            //std::cout << "Not permitted" << std::endl;
-            Message m;
-            m.to = command.from;
-            m.message = "Operation not permitted/recognized";
-            network.message(m);
-            return m.message;
-        }
-        else if(awaited) {
-            // This non-command is from a server from which a response is due
-            handle_response(command);
+        if(!access.permit(command.role, command.tokens[0])) {
+
+            // This appears to be a response
+            if(awaiting_response_from(command.from)) {
+                handle_response(command);
+                return "Not implemented";
+            }
+            else {
+                //std::cout << "Not permitted" << std::endl;
+                Message m;
+                m.to = command.from;
+                m.message = "Operation not permitted/recognized";
+                network.message(m);
+                return m.message;
+            }
         }
 
         if(c == "CONNECT") {
