@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <netdb.h>
 #include <strings.h>
 #include <unistd.h>
 
@@ -34,7 +35,7 @@ public:
         int port;
     };
 
-    NetworkHandler(int network_port, int info_port, int control_port=4055) {
+    NetworkHandler(int network_port, int info_port, int control_port) {
         this->control_port = control_port;
         this->network_port = network_port;
         this->info_port = info_port;
@@ -90,10 +91,28 @@ public:
         if(FD_ISSET(info_socket, &socket_set)) {
             std::cout << "Got an info request" << std::endl;
 
-            std::string buffer = read_socket(info_socket);
+            // TODO abstract from get_message()
+
+            socklen_t clilen;
+            struct sockaddr_in cli_addr;
+            bzero((char *) &cli_addr, sizeof(cli_addr));
+            clilen = sizeof(cli_addr);
+
+            char buffer[256];
+            bzero(buffer, 256);
+
+            // read content into buffer from an incoming client
+		    int len = recvfrom(info_socket, buffer, sizeof(buffer), 0,
+		                   (struct sockaddr *)&cli_addr, &clilen);
 
             std::string response = "";
-            write(info_socket, response.c_str(), response.length());
+            for(auto const& server: known_servers) {
+                response += server.first + ","                  + 
+                             server.second.IP + ","             +
+                             std::to_string(server.second.port) + ";\n";   
+            }
+
+		    sendto(info_socket, response.c_str(), len, 0, (struct sockaddr *)&cli_addr, sizeof(cli_addr));
         }
 
         // Get messages from all clients
@@ -128,6 +147,56 @@ public:
 
     void heartbeat() {
 
+    }
+
+    std::map<std::string, Server> get_servers() {
+        return known_servers;
+    }
+
+    Server get_server(std::string id) {
+        return known_servers[id];
+    }
+
+    bool connect_to_server(Server server) {
+        struct sockaddr_in destination_in;
+        struct hostent *destination;
+
+        destination = gethostbyname(server.IP.c_str());
+        if(destination == NULL) {
+            return false;
+        }
+
+        bzero((char *) &destination_in, sizeof(destination_in));
+
+        // destination info
+        destination_in.sin_family = AF_INET;
+        destination_in.sin_port = htons(server.port);
+        bcopy((char *)destination->h_addr,
+        (char *)&destination_in.sin_addr.s_addr,
+        destination->h_length);
+
+        int server_socket = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+        
+
+        connect(server_socket, (struct sockaddr *) &destination_in, sizeof(destination_in));
+ 
+        int error_code;
+        socklen_t error_code_size = sizeof(error_code);
+        getsockopt(server_socket, SOL_SOCKET, SO_ERROR, &error_code, &error_code_size);
+        
+        // Socket is not connected
+        if(error_code == 111) {
+            return false;
+        }
+
+        client_sockets["network"].push_back(server_socket);
+        server.socket = server_socket;
+        known_servers[std::to_string(server.port)] = server;
+        
+        // Message m {server_socket, "ID"};
+        // message(m);
+        
+        return true;
     }
 
 private:
@@ -171,7 +240,7 @@ private:
         serv_addr.sin_port = htons(port);
 
         if(bind(fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-            error("Unable to bind socket");
+            error("Unable to bind tcp socket");
         }
 
         if(listen(fd, 1) < 0) {
@@ -197,7 +266,7 @@ private:
         serv_addr.sin_port = htons(port);
 
         if(bind(fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-            error("Unable to bind socket");
+            error("Unable to bind udp socket");
         }
 
         return fd;
@@ -287,14 +356,6 @@ private:
                 error("Unable to close socket");
             }
         }
-    }
-
-    Server get_server(std::string id) {
-        return known_servers[id];
-    }
-
-    std::map<std::string, Server> get_servers() {
-        return known_servers;
     }
 
     // TODO: Remove
