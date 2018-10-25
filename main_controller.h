@@ -112,8 +112,8 @@ private:
             network.message(m);
 
             Message m2;
-            m.to = command.from;
-            m.message = "Message sent";
+            m2.to = command.from;
+            m2.message = "Message sent";
             network.message(m);
             return;
         } 
@@ -176,7 +176,6 @@ private:
             // SPECIAL. Requires a response
 
             // If token 1 is not a known server ID, assume that it is a command meant for us
-
 
             // Commands meant for us need to be stored so a response is handled properly
         }
