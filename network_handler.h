@@ -31,7 +31,7 @@ public:
     };
 
     struct Server {
-        int socket;
+        std::string ID;
         std::string IP;
         int port;
     };
@@ -107,7 +107,7 @@ public:
                     command.role = socket_type;
                     command.tokens = message_parser.tokenize(read_socket(client_socket));
 
-                    // TODO: Multithreading and command queues
+                    // std::cout << command.tokens[0] << std::endl;
                     return command;
                 }
             }
@@ -137,12 +137,12 @@ public:
 
     }
 
-    std::map<std::string, Server> get_servers() {
+    std::map<int, Server> get_servers() {
         return known_servers;
     }
 
-    Server get_server(std::string id) {
-        return known_servers[id];
+    Server get_server(int socket) {
+        return known_servers[socket];
     }
 
     bool connect_to_server(Server server) {
@@ -178,8 +178,8 @@ public:
         }
 
         client_sockets["network"].push_back(server_socket);
-        server.socket = server_socket;
-        known_servers[std::to_string(server.port)] = server;
+
+        known_servers[server_socket] = server;
         
         // Message m {server_socket, "ID"};
         // message(m);
@@ -198,7 +198,7 @@ private:
     int top_socket;
     fd_set socket_set;
 
-    std::map<std::string, Server> known_servers;    //Keys: Server ID - Values: Server structs
+    std::map<int, Server> known_servers;    //Keys: Server ID - Values: Server structs
     bool keep_running;
 
     MessageParser message_parser;

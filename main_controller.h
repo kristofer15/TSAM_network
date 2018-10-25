@@ -173,7 +173,7 @@ private:
             m.to = command.from;
 
             if(command.tokens.size() == 3) {
-                Server server = {-1, command.tokens[1], stoi(command.tokens[2])};
+                Server server = {"", command.tokens[1], stoi(command.tokens[2])};
                 
                 if(network.connect_to_server(server)){
                     m.message = "Successfully connected to: " + 
