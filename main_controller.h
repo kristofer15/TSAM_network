@@ -8,9 +8,9 @@ typedef NetworkHandler::Server Server;
 
 class MainController {
 public:
-    MainController(NetworkHandler &network, UserHandler &users, AccessControl &access) :
-        network(network), users(users), access(access) {
-            this->server_id = "V_Group_51";
+    MainController(NetworkHandler &network, UserHandler &users, AccessControl &access, std::string id) :
+        network(network), users(users), access(access), server_id(id) {
+            // this->server_id = "V_Group_51";
             this->md5 = {
                 "ca23ba209cc33678530392b7197fda4d",
                 "a3eaaf35761efa2a09437854e2caf4b3",
@@ -48,13 +48,6 @@ private:
 
     std::map<int, Response> responses;
 
-    long unix_timestamp()
-    {
-        time_t t = std::time(0);
-        long int now = static_cast<long int> (t);
-        return now;
-    }
-
     std::string handle_command(Command &command) {
         std::string c = command.tokens[0];
         Message m;
@@ -62,17 +55,7 @@ private:
         // Check if the command token is whitelisted for this role
         if(!access.permit(command.role, command.tokens[0])) {
             // This appears to be a response
-            if(awaiting_response_from(command.from)) {
-                handle_response(command);
-                return "Not implemented";
-            }
-            else {
-                Message m;
-                m.to = command.from;
-                m.message = "Operation not permitted/recognized";
-                network.message(m);
-                return m.message;
-            }
+            return "Operation not permitted/recognized";
         }
 
         if(c == "CONNECT") {
@@ -200,14 +183,8 @@ private:
                     int port = stoi(command.tokens[2]);
                     Server server = network.connect_to_server(ip, port);
 
-                    responses[server.socket] = {unix_timestamp(), {"ID"}, {}};
-
-                    Message demand_id;
-                    demand_id.to = server.socket;
-                    demand_id.message = "CMD,,"+server_id+",ID";
-                    network.message(demand_id);
-
-                    m.message = "Successfully connected to: " + 
+                    request_id(server.socket);
+                    m.message = "Successfully connected to " + 
                                 server.ip + " "               + 
                                 std::to_string(server.port);
 
@@ -306,6 +283,13 @@ private:
                 std::cout << "Response forwarding failed" << std::endl;
             }
         }
+        else if(c == "META_REQUEST_ID") {
+            std::cout << "Meta request" << std::endl;
+            std::cout << "Requesting ID from " << command.tokens[1] << std::endl;
+            request_id(stoi(command.tokens[1]));
+            std::cout << "ID requested" << std::endl;
+            return "ID requested";
+        }
         else {  // Don't go here. Validate first.
             std::cout << "Command not implemented" << std::endl;
             return "Command not implemented";
@@ -347,33 +331,64 @@ private:
         }
     }
 
-    bool awaiting_response_from(int fd) {
-        return responses.count(fd) ? true : false;
-    }
-
     std::string handle_response(Command &command) {
         std::string c = responses[command.from].sent_tokens[0];
 
-        if(c == "ID") {
-            std::string id = command.delegate_tokens[0];
+        // Use a pointer so that we can modify the object
+        Server* s;
 
-            if(id == "ID") {
+        if(network.contains_server(command.from)) {
+            s = &network.get_server(command.from);            
+        }
+        else {
+            return "Received RSP from an unidentified client";
+        }
+
+        if(c == "ID") {
+            int id_index = 0;
+
+            if(command.delegate_tokens[id_index] == "ID") {
                 if(command.delegate_tokens.size() < 2) {
                     return "Received an invalid response";
                 }
 
-                id = command.delegate_tokens[1];
+                ++id_index;
             }
 
-            Server server = network.get_server(command.from);
-            server.id = id;
+            s->id = command.delegate_tokens[id_index];
 
-            std::cout << "Received id: " << id << std::endl;
+            // Try to get these if they're missing
+            if(s->ip == "" || s->port == 0) {
+                s->ip = command.delegate_tokens[id_index+1];
+                s->port = stoi(command.delegate_tokens[id_index+2]);
+            }
 
             // Response received
             responses.erase(command.from);
         }
+
         std::cout << "RECEIVED RESPONSE" << std::endl;
         return "RECEIVED RESPONSE";
+    }
+
+    void request_id(int socket) {
+        responses[socket] = {unix_timestamp(), {"ID"}, {}};
+
+        Message demand_id;
+        demand_id.to = socket;
+        demand_id.message = "CMD,,"+server_id+",ID";
+        network.message(demand_id);
+    }
+
+    bool awaiting_response_from(int fd) {
+        // Is this even necessary?
+        return true;
+        // return responses.count(fd) ? true : false;
+    }
+
+    long unix_timestamp() {
+        time_t t = std::time(0);
+        long int now = static_cast<long int> (t);
+        return now;
     }
 };

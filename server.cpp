@@ -19,6 +19,10 @@ int main(int argc, char* argv[]) {
     UserHandler users;
     AccessControl access;
 
-    MainController controller(network, users, access);
+    // DEBUG
+    std::string id = "V_Group_51";
+    if(argc == 5) { id = argv[4]; }
+
+    MainController controller(network, users, access, id);
     controller.run();
 }

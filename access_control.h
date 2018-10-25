@@ -5,18 +5,21 @@
 class AccessControl {
 public:
     AccessControl() {
-        locks["LISTSERVERS"] = 0b111;
-        locks["ID"] = 0b110;
-        locks["CONNECT"] = 0b110;
-        locks["WHO"] = 0b110;
-        locks["MSG"] = 0b110;
-        locks["LEAVE"] = 0b110;
-        locks["KEEPALIVE"] = 0b110;
-        locks["LISTROUTES"] = 0b110;
-        locks["CMD"] = 0b110;
-        locks["FETCH"] = 0b110;
-        locks["SHUTDOWN"] = 0b100;
-        locks["ADDSERVER"] = 0b100;
+        locks["LISTSERVERS"] = 0b1111;
+        locks["ID"] = 0b1110;
+        locks["CONNECT"] = 0b1110;
+        locks["WHO"] = 0b1110;
+        locks["MSG"] = 0b1110;
+        locks["LEAVE"] = 0b1110;
+        locks["KEEPALIVE"] = 0b1110;
+        locks["LISTROUTES"] = 0b1110;
+        locks["CMD"] = 0b1110;
+        locks["FETCH"] = 0b1110;
+        locks["SHUTDOWN"] = 0b1100;
+        locks["ADDSERVER"] = 0b1100;
+        locks["RSP"] = 0b0010;
+        
+        locks["META_REQUEST_ID"] = 0b1000;
     }
 
     ~AccessControl() {}
@@ -33,16 +36,19 @@ private:
     int generate_key(std::string& role) {
 
         if(role == "control") {
-            return 0b100;
+            return 0b0100;
         }
         else if(role == "network") {
-            return 0b010;
+            return 0b0010;
         }
         else if(role == "info") {
-            return 0b001;
+            return 0b0001;
+        }
+        else if(role == "root") {
+            return 0b1000;
         }
         else {
-            return 0b000;
+            return 0b0000;
         }
     }
 };

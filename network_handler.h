@@ -88,10 +88,14 @@ public:
         if(FD_ISSET(network_socket, &socket_set)) {
             std::cout << "Got a network request" << std::endl;
 
-            int client_socket = accept_connection(network_socket);
+            int client_socket = accept_connection(network_socket, true);
             client_sockets["network"].push_back(client_socket);
 
-            // TODO: Track connected server
+            command.from = -1;
+            command.role = "root";
+            command.tokens = {"META_REQUEST_ID", std::to_string(client_socket)};
+
+            return command;
         }
 
         if(FD_ISSET(info_socket, &socket_set)) {
@@ -109,6 +113,7 @@ public:
 
                 if(FD_ISSET(client_socket, &socket_set)) {
                     command.raw = read_socket(client_socket);
+                    std::cout << command.raw << std::endl;
                     command.from = client_socket;
                     command.role = socket_type;
 
@@ -167,6 +172,10 @@ public:
         return known_servers;
     }
 
+    bool contains_server(int socket) {
+        return known_servers.count(socket) ? true : false;
+    }
+
     Server& get_server(int socket) {
         return known_servers[socket];
     }
@@ -215,6 +224,7 @@ public:
         
         // fill new server info and return
         Server server = {server_socket, "", ip, port, {}, 1};
+        known_servers[server_socket] = server;
         
         return server;
     }
@@ -354,7 +364,7 @@ private:
         }
     }
 
-    int accept_connection(int socket) {
+    int accept_connection(int socket, bool server=false) {
         // setup client address info
         socklen_t clilen;
         struct sockaddr_in cli_addr;
@@ -362,6 +372,17 @@ private:
         clilen = sizeof(cli_addr);
 
         int client_socket = accept(socket, (struct sockaddr *) &cli_addr, &clilen);
+
+        if(server) {
+            Server s;
+            s.socket = client_socket;
+            s.ip = "Placeholder";
+            s.port = cli_addr.sin_port;
+            s.distance = 1;
+
+            known_servers[client_socket] = s;
+        }
+
         top_socket = std::max(client_socket, top_socket);
         return client_socket;
     }
