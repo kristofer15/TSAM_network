@@ -208,19 +208,6 @@ public:
         return true;
     }
 
-    std::string read_socket(int socket) {
-        char buffer[256];
-        bzero(buffer, 256);
-
-        if(read(socket, buffer, 255) <= 0) {  
-            std::cout << "Client disconnected" << std::endl;
-            remove_client(socket);
-            return "LEAVE";
-        }
-
-        return buffer;
-    }
-
 private:
     int control_port;
     int control_socket;
@@ -366,6 +353,28 @@ private:
         int client_socket = accept(socket, (struct sockaddr *) &cli_addr, &clilen);
         top_socket = std::max(client_socket, top_socket);
         return client_socket;
+    }
+
+    std::string read_socket(int socket) {
+        char buffer[256];
+        bzero(buffer, 256);
+
+        if(read(socket, buffer, 255) <= 0) {  
+            std::cout << "Client disconnected" << std::endl;
+            remove_client(socket);
+            return "LEAVE";
+        }
+
+        return trim_newline(buffer);
+    }
+
+    std::string trim_newline(std::string s) {
+        std::string trimmed = s;
+        while(trimmed[trimmed.length()-1] == '\n') {
+            trimmed.erase(trimmed.length()-1);
+        }
+
+        return trimmed;
     }
 
     void remove_client(int socket) {
