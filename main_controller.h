@@ -205,6 +205,8 @@ private:
                     responses[server.socket] = {unix_timestamp(), {"ID"}, {}};
 
                     Message demand_id = {server.socket, "CMD,,server_id,ID"};
+                    demand_id.to = server.socket;
+                    demand_id.message = "CMD,,"+server_id+",ID";
                     network.message(demand_id);
 
                     m.message = "Successfully connected to: " + 
@@ -342,7 +344,10 @@ private:
     }
 
     std::string handle_response(Command &command) {
-        std::string c = responses[command.from].sent_tokens[0];        
+        std::string c = responses[command.from].sent_tokens[0];
+        for(auto token : command.tokens) {
+            std::cout << token << std::endl;
+        }
         std::cout << "RECEIVED RESPONSE" << std::endl;
         return "RECEIVED RESPONSE";
     }
