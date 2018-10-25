@@ -23,6 +23,8 @@ public:
         int from;
         std::string role;
         std::vector<std::string> tokens;
+        std::vector<std::string> delegate_tokens;
+        std::string raw;
     };
 
     struct Message {
@@ -31,9 +33,12 @@ public:
     };
 
     struct Server {
-        std::string ID;
-        std::string IP;
+        int socket;
+        std::string id;
+        std::string ip;
         int port;
+        std::vector<std::string> intermediates;
+        int distance;
     };
 
     NetworkHandler(int network_port, int info_port, int control_port) {
@@ -103,10 +108,20 @@ public:
             for(int client_socket : client_sockets[socket_type]) {
 
                 if(FD_ISSET(client_socket, &socket_set)) {
+                    command.raw = read_socket(client_socket);
                     command.from = client_socket;
                     command.role = socket_type;
-                    command.tokens = message_parser.tokenize(read_socket(client_socket));
-                    
+
+                    // The message contains commas
+                    // Assume that this is a meta command with a delegate command trailing
+                    if(command.raw.find(',') != std::string::npos) {
+                        command.tokens = message_parser.tokenize(command.raw, ',');
+                        command.delegate_tokens = message_parser.tokenize(command.tokens.back(), ' ');
+                    }
+                    else {
+                        command.tokens = message_parser.tokenize(command.raw, ' ');
+                    }
+
                     return command;
                 }
             }
@@ -144,11 +159,22 @@ public:
         return known_servers[socket];
     }
 
+    Server find_server(std::string id) {
+        for(auto it = known_servers.begin(); it != known_servers.end(); ++it) {
+            if(it->second.id == id) {
+                return it->second;
+            }
+        }
+
+        Server non_server;
+        return non_server;
+    }
+
     bool connect_to_server(Server server) {
         struct sockaddr_in destination_in;
         struct hostent *destination;
 
-        destination = gethostbyname(server.IP.c_str());
+        destination = gethostbyname(server.ip.c_str());
         if(destination == NULL) { return false; }
 
         bzero((char *) &destination_in, sizeof(destination_in));
@@ -330,16 +356,6 @@ private:
         return client_socket;
     }
 
-    void remove_client(int socket) {
-        close_socket(socket);
-
-        // Remove client fd. Take care not to deep copy the vector.
-        for(auto socket_type : {"control", "network", "info"}) {
-            auto *v = &client_sockets[socket_type];
-            v->erase(std::remove(v->begin(), v->end(), socket), v->end());
-        }
-    }
-
     std::string read_socket(int socket) {
         char buffer[256];
         bzero(buffer, 256);
@@ -364,6 +380,16 @@ private:
         };
 
         return trimmed;
+    }
+
+    void remove_client(int socket) {
+        close_socket(socket);
+
+        // Remove client fd. Take care not to deep copy the vector.
+        for(auto socket_type : {"control", "network", "info"}) {
+            auto *v = &client_sockets[socket_type];
+            v->erase(std::remove(v->begin(), v->end(), socket), v->end());
+        }
     }
 
     void close_socket(int fd) {

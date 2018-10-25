@@ -8,13 +8,14 @@ public:
 
     MessageParser() { }
 
-    std::vector<std::string> tokenize(std::string message) {
+    std::vector<std::string> tokenize(std::string message, char delimiter=' ') {
+
+        // sstream from the assignments example server:
         std::stringstream stream(message);
         std::string token;
         std::vector<std::string> tokens;
 
-        // sstream from the assignments example server:
-        while (stream >> token) {
+        while (std::getline(stream, token, delimiter)) {
             tokens.push_back(token);
         }
 

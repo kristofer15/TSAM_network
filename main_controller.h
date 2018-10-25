@@ -19,10 +19,10 @@ public:
         while(true) {
             Command command = network.get_message();
 
-            if(command.tokens.size() <= 0 || command.role == "") {
+            if(command.tokens.size() == 0 || command.role == "") {
                 continue;
             }
-            match_command(command);
+            handle_command(command);
         }
     }
 
@@ -42,7 +42,7 @@ private:
 
     std::map<int, Response> responses;
 
-    void match_command(Command &command) {
+    std::string handle_command(Command &command) {
         std::string c = command.tokens[0];
         Message m;
 
@@ -51,15 +51,21 @@ private:
             //printf("%c --> %d\n",c[i],c[i]);
                 // if (c[i] == '\n')
                 //     std::cout << "found" << std::endl;
+     
+        bool awaited = awaiting_response_from(command.from);
 
         // Check if the command token is whitelisted for this role
-        if(!access.permit(command.role, command.tokens[0])) {
+        if(!access.permit(command.role, command.tokens[0]) && !awaited) {
             //std::cout << "Not permitted" << std::endl;
             Message m;
             m.to = command.from;
             m.message = "Operation not permitted/recognized";
             network.message(m);
-            return;
+            return m.message;
+        }
+        else if(awaited) {
+            // This non-command is from a server from which a response is due
+            handle_response(command);
         }
 
         if(c == "CONNECT") {
@@ -84,14 +90,14 @@ private:
             }
 
             network.message(m);
-            return;
+            return m.message;
         }
         else if(c == "MSG") {
             if(command.tokens.size() < 2) {
                 m.to = command.from;
                 m.message = "Missing recipient and/or message";
                 network.message(m);
-                return;
+                return m.message;
             }
 
             std::string sender = users.user_name(command.from);
@@ -99,7 +105,7 @@ private:
                 m.to = command.from;
                 m.message = "You must connect before sending messages";
                 network.message(m);
-                return;
+                return m.message;
             }
 
             int recipient = users.id(command.tokens[1]);
@@ -123,7 +129,7 @@ private:
             m2.to = command.from;
             m2.message = "Message sent";
             network.message(m);
-            return;
+            return m.message;
         } 
         else if(c == "WHO") {
             m.to = command.from;
@@ -140,7 +146,7 @@ private:
             }
 
             network.message(m);
-            return;
+            return m.message;
         }
         else if(c == "LEAVE") {
             m.to = command.from;
@@ -153,7 +159,7 @@ private:
             }
 
             network.message(m);
-            return;
+            return m.message;
         }
         else if(c == "ID") {
             m.to = command.from;
@@ -161,32 +167,35 @@ private:
 
             std::cout << m.to << std::endl;
             network.message(m);
-            return;
+            return m.message;
         }
         else if(c == "LISTSERVERS") {
 
             m.to = command.from;
             m.message = "";
             for(auto const& server: network.get_servers()) {
-                m.message += server.first + ","                 + 
-                             server.second.IP + ","             +
+                m.message += server.second.id + ","                 + 
+                             server.second.ip + ","             +
                              std::to_string(server.second.port) + ";";   
             }
 
             network.message(m);
-       
-            return;
+            return m.message;
         }
         else if(c == "ADDSERVER") {
             // TODO responsibility of main controller concering adding servers
             m.to = command.from;
 
             if(command.tokens.size() == 3) {
-                Server server = {"", command.tokens[1], stoi(command.tokens[2])};
+                // TODO: connect_to_server should take address info and return a server struct
+                // TODO: Only succeed once ID has been returned. Needs to be async. Don't expect a response here
+                Server server;
+                server.ip = command.tokens[1];
+                server.port = stoi(command.tokens[2]);
                 
                 if(network.connect_to_server(server)){
                     m.message = "Successfully connected to: " + 
-                                server.IP + " "               + 
+                                server.ip + " "               + 
                                 std::to_string(server.port);
                 }
                 else {
@@ -199,7 +208,7 @@ private:
             }
 
             network.message(m);
-            return;
+            return m.message;
         }
         else if(c == "FETCH") {
             m.to = command.from;
@@ -218,17 +227,86 @@ private:
             }
 
             network.message(m);
-            return;
+            return m.message;
         }
         else if(c == "CMD") {
-            // SPECIAL. Requires a response
+            std::string response_message;
+
+            // Commands intended for us are indicated wtih 3 tokens or
+            // 4 tokens where the second is our ID
+            if(command.tokens.size() == 3 || (command.tokens.size() == 4 && command.tokens[1] == server_id)) {
+                Command delegate;
+                delegate.from = -1;
+                delegate.role = "network";
+                delegate.tokens  = command.delegate_tokens;
+
+                m.to = command.from;
+                response_message = handle_command(delegate);
+            }
+            else if(command.tokens.size() != 4) {
+                m.to = command.from;
+                m.message = "Invalid number of arguments";
+                network.message(m);
+                return m.message;
+            }
+
+            // Forward the message
+            // Server target = network.find_server(command.tokens[1]);
+            Server target = network.get_servers()[0];
+            if(true) {
+                m.to = target.socket;
+
+                // We don't have a direct connection
+                if(target.distance > 1) {
+                    m.to = network.find_server(target.intermediates[0]).socket;
+                }
+
+                m.message = command.raw;
+                network.message(m);
+                return "Message delegated";
+            }
+            else {
+                return "Target server not found";
+            }
+
+            m.message = "RSP," + command.tokens[1] + "," + server_id + "," + response_message; 
+            network.message(m);
+            return m.message;
 
             // If token 1 is not a known server ID, assume that it is a command meant for us
 
             // Commands meant for us need to be stored so a response is handled properly
         }
+        else if(c == "RSP") {
+            // Responses intended for us are indicated with 3 tokens or
+            // 4 tokens where the second is our ID
+            if(command.tokens.size() == 3 || (command.tokens.size() == 4 && command.tokens[1] == server_id)) {
+                handle_response(command);
+            }
+            else if(command.tokens.size() != 4) {
+                m.to = command.from;
+                m.message = "Invalid number of arguments";
+                network.message(m);
+
+                std::cout << "Received an invalid RSP" << std::endl;
+                return m.message;
+            }
+
+            // TODO: Forward 
+            return "Response procesed";
+        }
         else {  // Don't go here. Validate first.
             std::cout << "Command not implemented" << std::endl;
+            return "Command not implemented";
         }
+    }
+
+    bool awaiting_response_from(int fd) {
+        return responses.count(fd) ? true : false;
+    }
+
+    void handle_response(Command &command) {
+        std::string c = responses[command.from].sent_tokens[0];        
+        std::cout << "RECEIVED RESPONSE" << std::endl;
     }
 };
