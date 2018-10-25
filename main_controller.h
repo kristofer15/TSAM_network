@@ -178,7 +178,11 @@ private:
             m.to = command.from;
 
             if(command.tokens.size() == 3) {
-                Server server = {"", command.tokens[1], stoi(command.tokens[2])};
+                // TODO: connect_to_server should take address info and return a server struct
+                // TODO: Only succeed once ID has been returned. Needs to be async. Don't expect a response here
+                Server server;
+                server.ip = command.tokens[1];
+                server.port = stoi(command.tokens[2]);
                 
                 if(network.connect_to_server(server)){
                     m.message = "Successfully connected to: " + 
@@ -237,7 +241,24 @@ private:
                 return m.message;
             }
 
-            // TODO: Forward message
+            // Forward the message
+            // Server target = network.find_server(command.tokens[1]);
+            Server target = network.get_servers()[0];
+            if(true) {
+                m.to = target.socket;
+
+                // We don't have a direct connection
+                if(target.distance > 1) {
+                    m.to = network.find_server(target.intermediates[0]).socket;
+                }
+
+                m.message = command.raw;
+                network.message(m);
+                return "Message delegated";
+            }
+            else {
+                return "Target server not found";
+            }
 
             m.message = "RSP," + command.tokens[1] + "," + server_id + "," + response_message; 
             network.message(m);

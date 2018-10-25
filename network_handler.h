@@ -24,6 +24,7 @@ public:
         std::string role;
         std::vector<std::string> tokens;
         std::vector<std::string> delegate_tokens;
+        std::string raw;
     };
 
     struct Message {
@@ -32,9 +33,12 @@ public:
     };
 
     struct Server {
+        int socket;
         std::string id;
         std::string ip;
         int port;
+        std::vector<std::string> intermediates;
+        int distance;
     };
 
     NetworkHandler(int network_port, int info_port, int control_port) {
@@ -104,18 +108,18 @@ public:
             for(int client_socket : client_sockets[socket_type]) {
 
                 if(FD_ISSET(client_socket, &socket_set)) {
-                    std::string message = read_socket(client_socket);
+                    command.raw = read_socket(client_socket);
                     command.from = client_socket;
                     command.role = socket_type;
 
                     // The message contains commas
                     // Assume that this is a meta command with a delegate command trailing
-                    if(message.find(',') != std::string::npos) {
-                        command.tokens = message_parser.tokenize(message, ',');
+                    if(command.raw.find(',') != std::string::npos) {
+                        command.tokens = message_parser.tokenize(command.raw, ',');
                         command.delegate_tokens = message_parser.tokenize(command.tokens.back(), ' ');
                     }
                     else {
-                        command.tokens = message_parser.tokenize(message, ' ');
+                        command.tokens = message_parser.tokenize(command.raw, ' ');
                     }
 
                     return command;
@@ -162,7 +166,7 @@ public:
             }
         }
 
-        Server non_server{"", "", -1};
+        Server non_server;
         return non_server;
     }
 
