@@ -22,6 +22,7 @@ public:
         int from;
         std::string role;
         std::vector<std::string> tokens;
+        std::vector<std::string> delegate_tokens;
     };
 
     struct Message {
@@ -30,8 +31,8 @@ public:
     };
 
     struct Server {
-        std::string ID;
-        std::string IP;
+        std::string id;
+        std::string ip;
         int port;
     };
 
@@ -108,7 +109,7 @@ public:
             std::string response = "";
             for(auto const& server: known_servers) {
                 response += server.first + ","                  + 
-                             server.second.IP + ","             +
+                             server.second.ip + ","             +
                              std::to_string(server.second.port) + ";\n";   
             }
 
@@ -120,11 +121,20 @@ public:
             for(int client_socket : client_sockets[socket_type]) {
 
                 if(FD_ISSET(client_socket, &socket_set)) {
+                    std::string message = read_socket(client_socket);
                     command.from = client_socket;
                     command.role = socket_type;
-                    command.tokens = message_parser.tokenize(read_socket(client_socket));
 
-                    // std::cout << command.tokens[0] << std::endl;
+                    // The message contains commas
+                    // Assume that this is a meta command with a delegate command trailing
+                    if(message.find(',') != std::string::npos) {
+                        command.tokens = message_parser.tokenize(message, ',');
+                        command.delegate_tokens = message_parser.tokenize(command.tokens.back(), ' ');
+                    }
+                    else {
+                        command.tokens = message_parser.tokenize(message, ' ');
+                    }
+
                     return command;
                 }
             }
@@ -157,11 +167,22 @@ public:
         return known_servers[socket];
     }
 
+    Server find_server(std::string id) {
+        for(auto it = known_servers.begin(); it != known_servers.end(); ++it) {
+            if(it->second.id == id) {
+                return it->second;
+            }
+        }
+
+        Server non_server{"", "", -1};
+        return non_server;
+    }
+
     bool connect_to_server(Server server) {
         struct sockaddr_in destination_in;
         struct hostent *destination;
 
-        destination = gethostbyname(server.IP.c_str());
+        destination = gethostbyname(server.ip.c_str());
         if(destination == NULL) {
             return false;
         }
@@ -197,6 +218,19 @@ public:
         // message(m);
         
         return true;
+    }
+
+    std::string read_socket(int socket) {
+        char buffer[256];
+        bzero(buffer, 256);
+
+        if(read(socket, buffer, 255) <= 0) {  
+            std::cout << "Client disconnected" << std::endl;
+            remove_client(socket);
+            return "LEAVE";
+        }
+
+        return buffer;
     }
 
 private:
@@ -335,19 +369,6 @@ private:
             auto *v = &client_sockets[socket_type];
             v->erase(std::remove(v->begin(), v->end(), socket), v->end());
         }
-    }
-
-    std::string read_socket(int socket) {
-        char buffer[256];
-        bzero(buffer, 256);
-
-        if(read(socket, buffer, 255) <= 0) {  
-            std::cout << "Client disconnected" << std::endl;
-            remove_client(socket);
-            return "LEAVE";
-        }
-
-        return buffer;
     }
 
     void close_socket(int fd) {
