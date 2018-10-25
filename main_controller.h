@@ -161,7 +161,7 @@ private:
             return m.message;
         }
         else if(c == "LISTSERVERS") {
-            // TODO how to work for both tcp and udp?           
+
             m.to = command.from;
             m.message = "";
             for(auto const& server: network.get_servers()) {
@@ -169,8 +169,14 @@ private:
                              server.second.ip + ","             +
                              std::to_string(server.second.port) + ";";   
             }
+
             network.message(m);
+<<<<<<< HEAD
             return m.message;
+=======
+       
+            return;
+>>>>>>> 6a41a54520e91ea92bde4760036ae187c0c79215
         }
         else if(c == "ADDSERVER") {
             // TODO responsibility of main controller concering adding servers
