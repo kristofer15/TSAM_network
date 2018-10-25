@@ -257,10 +257,15 @@ private:
                 m.message = "RSP," + command.tokens[2] + "," + server_id + "," + handle_command(delegate);
                 network.message(m);
                 return m.message;
-
             }
 
-            return forward_command(command);
+            if(forward_command(command)) {
+                std::cout << "Command forwarded" << std::endl;
+                return "Command forwarded";
+            }
+            else {
+                std::cout << "Command forwarding failed" << std::endl;
+            }
         }
         else if(c == "RSP") {
             if(command.tokens.size() < 4) {
@@ -277,7 +282,13 @@ private:
                 return handle_response(command);
             }
 
-            return forward_command(command);
+            if(forward_command(command)) {
+                std::cout << "Response forwarded" << std::endl;
+                return "Response forwarded";
+            }
+            else {
+                std::cout << "Response forwarding failed" << std::endl;
+            }
         }
         else {  // Don't go here. Validate first.
             std::cout << "Command not implemented" << std::endl;
@@ -285,7 +296,7 @@ private:
         }
     }
 
-    std::string forward_command(Command &command) {
+    bool forward_command(Command &command) {
         Message m;
 
         // Forward the message
@@ -302,10 +313,21 @@ private:
 
             m.message = command.raw;
             network.message(m);
-            return "Message delegated";
+
+            // We need a response
+            if(command.tokens[0] == "CMD") {
+                Response response;
+                response.timestamp = -1;
+                response.sent_tokens = command.delegate_tokens;
+                responses[m.to] = response;
+            }
+
+            // Message forwarded
+            return true;
         }
         else {
-            return "Target server not found";
+            // Target server not found
+            return false;
         }
     }
 
