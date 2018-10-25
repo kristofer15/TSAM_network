@@ -19,7 +19,7 @@ public:
         while(true) {
             Command command = network.get_message();
 
-            if(command.tokens.size() <= 0 || command.role == "") {
+            if(command.tokens.size() == 0 || command.role == "") {
                 continue;
             }
             handle_command(command);
@@ -246,6 +246,24 @@ private:
             // If token 1 is not a known server ID, assume that it is a command meant for us
 
             // Commands meant for us need to be stored so a response is handled properly
+        }
+        else if(c == "RSP") {
+            // Responses intended for us are indicated with 3 tokens or
+            // 4 tokens where the second is our ID
+            if(command.tokens.size() == 3 || (command.tokens.size() == 4 && command.tokens[1] == server_id)) {
+                handle_response(command);
+            }
+            else if(command.tokens.size() != 4) {
+                m.to = command.from;
+                m.message = "Invalid number of arguments";
+                network.message(m);
+
+                std::cout << "Received an invalid RSP" << std::endl;
+                return m.message;
+            }
+
+            // TODO: Forward 
+            return "Response procesed";
         }
         else {  // Don't go here. Validate first.
             std::cout << "Command not implemented" << std::endl;
