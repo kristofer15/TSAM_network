@@ -161,7 +161,7 @@ private:
             for(auto const& server: network.get_servers()) {
                 m.message += server.first + ","                 + 
                              server.second.IP + ","             +
-                             std::to_string(server.second.port) + ";\n";   
+                             std::to_string(server.second.port) + ";";   
             }
             network.message(m);
             return;
@@ -176,14 +176,14 @@ private:
                 if(network.connect_to_server(server)){
                     m.message = "Successfully connected to: " + 
                                 server.IP + " "               + 
-                                std::to_string(server.port) + "\n";
+                                std::to_string(server.port);
                 }
                 else {
-                    m.message = "Unable to connect server\n"; 
+                    m.message = "Unable to connect server"; 
                 }
             }
             else {
-                m.message = "Invalid number of arguments\n";
+                m.message = "Invalid number of arguments";
                 
             }
 

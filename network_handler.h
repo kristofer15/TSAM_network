@@ -137,7 +137,7 @@ public:
         char start = 1; // SOH
         char end = 4;   // EOT
 
-        m.message = start + m.message + end;
+        m.message = start + m.message + "\n" + end;
         write(m.to, m.message.c_str(), m.message.length());
     }
 
