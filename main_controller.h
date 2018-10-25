@@ -291,14 +291,15 @@ private:
         // Forward the message
         Server target = network.find_server(command.tokens[1]);
         if(target.id != "") {
+            m.to = target.socket;
 
             // We don't have a direct connection
             if(target.distance > 1) {
+
                 // Delegate to the first intermediate (1-hop)
                 m.to = network.find_server(target.intermediates[0]).socket;
             }
 
-            m.to = target.socket;
             m.message = command.raw;
             network.message(m);
             return "Message delegated";
