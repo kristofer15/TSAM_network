@@ -170,18 +170,18 @@ public:
         return non_server;
     }
 
-    bool connect_to_server(Server server) {
+    Server connect_to_server(const std::string ip, const int port) {
         struct sockaddr_in destination_in;
         struct hostent *destination;
 
-        destination = gethostbyname(server.ip.c_str());
-        if(destination == NULL) { return false; }
+        destination = gethostbyname(ip.c_str());
+        if(destination == NULL) { throw std::runtime_error("Destionation IP unavailable"); }
 
         bzero((char *) &destination_in, sizeof(destination_in));
 
         // destination info
         destination_in.sin_family = AF_INET;
-        destination_in.sin_port = htons(server.port);
+        destination_in.sin_port = htons(port);
         bcopy((char *)destination->h_addr,
         (char *)&destination_in.sin_addr.s_addr,
         destination->h_length);
@@ -196,17 +196,15 @@ public:
         getsockopt(server_socket, SOL_SOCKET, SO_ERROR, &error_code, &error_code_size);
         
         // Socket is not connected
-        if(error_code == 111) { return false; }
+        if(error_code == 111) { throw std::runtime_error("Socket unable to connect"); }
 
         client_sockets["network"].push_back(server_socket);
         top_socket = std::max(server_socket, top_socket);
         
-        Message m = {server_socket, "ID"};
-        message(m);
-
-        known_servers[server_socket] = server;
+        // fill new server info and return
+        Server server = {server_socket, "", ip, port, {}, 1};
         
-        return true;
+        return server;
     }
 
 private:

@@ -1,4 +1,5 @@
 #include <sys/time.h>
+#include <ctime>
 
 // Less typing
 typedef NetworkHandler::Command Command;
@@ -47,26 +48,25 @@ private:
 
     std::map<int, Response> responses;
 
+    long unix_timestamp()
+    {
+        time_t t = std::time(0);
+        long int now = static_cast<long int> (t);
+        return now;
+    }
+
     std::string handle_command(Command &command) {
         std::string c = command.tokens[0];
         Message m;
 
-        //std::cout << "role: " << command.role << ", command: " << c << std::endl;
-        // for (size_t i = 0; i < c.length(); i++)
-            //printf("%c --> %d\n",c[i],c[i]);
-                // if (c[i] == '\n')
-                //     std::cout << "found" << std::endl;
-     
         // Check if the command token is whitelisted for this role
         if(!access.permit(command.role, command.tokens[0])) {
-
             // This appears to be a response
             if(awaiting_response_from(command.from)) {
                 handle_response(command);
                 return "Not implemented";
             }
             else {
-                //std::cout << "Not permitted" << std::endl;
                 Message m;
                 m.to = command.from;
                 m.message = "Operation not permitted/recognized";
@@ -171,9 +171,10 @@ private:
         else if(c == "ID") {
             m.to = command.from;
             m.message = server_id;
-
-            std::cout << m.to << std::endl;
             network.message(m);
+
+            std::cout << "ID command from: " << command.from << std::endl;
+
             return m.message;
         }
         else if(c == "LISTSERVERS") {
@@ -196,18 +197,24 @@ private:
             if(command.tokens.size() == 3) {
                 // TODO: connect_to_server should take address info and return a server struct
                 // TODO: Only succeed once ID has been returned. Needs to be async. Don't expect a response here
-                Server server;
-                server.ip = command.tokens[1];
-                server.port = stoi(command.tokens[2]);
                 
-                if(network.connect_to_server(server)){
+                try {
+                    std::string ip = command.tokens[1];
+                    int port = stoi(command.tokens[2]);
+                    Server server = network.connect_to_server(ip, port);
+
+                    responses[server.socket] = {unix_timestamp(), {"ID"}, {}};
+
+                    Message demand_id = {server.socket, "CMD,,server_id,ID"};
+                    network.message(demand_id);
+
                     m.message = "Successfully connected to: " + 
                                 server.ip + " "               + 
                                 std::to_string(server.port);
-                }
-                else {
-                    m.message = "Unable to connect server"; 
-                }
+
+                } catch (std::runtime_error msg) {
+                    m.message = msg.what(); 
+                }     
             }
             else {
                 m.message = "Invalid number of arguments";
