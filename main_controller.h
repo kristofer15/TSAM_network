@@ -201,7 +201,7 @@ private:
                     responses[server.socket] = {unix_timestamp(), {"ID"}, {}};
 
                     m.to = server.socket;
-                    m.message = "CMD,,server_id,ID";
+                    m.message = "CMD,,"+ server_id + ",ID";
 
                 } catch (std::runtime_error msg) {
                     m.message = msg.what(); 
@@ -249,7 +249,17 @@ private:
 
                 m.to = command.from;
 
-                m.message = "RSP," + command.tokens[2] + "," + server_id + "," + handle_command(delegate);
+                // Create response header
+                m.message = "RSP," + command.tokens[2] + ',' + server_id;
+
+                // Commands sent
+                for(auto token : command.delegate_tokens) {
+                    m.message += ',' + token;
+                }
+
+                // Command result
+                m.message += ',' + handle_command(delegate);
+
                 network.message(m);
                 return m.message;
             }
@@ -331,7 +341,27 @@ private:
     }
 
     std::string handle_response(Command &command) {
-        std::string c = responses[command.from].sent_tokens[0];        
+        std::string c = responses[command.from].sent_tokens[0];
+
+        if(c == "ID") {
+            std::string id = command.delegate_tokens[0];
+
+            if(id == "ID") {
+                if(command.delegate_tokens.size() < 2) {
+                    return "Received an invalid response";
+                }
+
+                id = command.delegate_tokens[1];
+            }
+
+            Server server = network.get_server(command.from);
+            server.id = id;
+
+            std::cout << "Received id: " << id << std::endl;
+
+            // Response received
+            responses.erase(command.from);
+        }
         std::cout << "RECEIVED RESPONSE" << std::endl;
         return "RECEIVED RESPONSE";
     }

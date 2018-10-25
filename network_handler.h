@@ -146,7 +146,7 @@ public:
         char start = 1; // SOH
         char end = 4;   // EOT
 
-        m.message = start + m.message + "\n" + end;
+        m.message = m.message + "\n";
         if(m.to == info_socket) {
             echo_udp(m);
         }
@@ -167,7 +167,7 @@ public:
         return known_servers;
     }
 
-    Server get_server(int socket) {
+    Server& get_server(int socket) {
         return known_servers[socket];
     }
 
