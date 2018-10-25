@@ -10,7 +10,7 @@ void help(std::string file_name="server") {
 
 int main(int argc, char* argv[]) {
 
-    if(argc < 3) {
+    if(argc < 4) {
         help(argv[0]);
         return 0;
     }
