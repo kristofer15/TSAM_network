@@ -171,12 +171,7 @@ private:
             }
 
             network.message(m);
-<<<<<<< HEAD
             return m.message;
-=======
-       
-            return;
->>>>>>> 6a41a54520e91ea92bde4760036ae187c0c79215
         }
         else if(c == "ADDSERVER") {
             // TODO responsibility of main controller concering adding servers
@@ -226,9 +221,10 @@ private:
 
             // Commands intended for us are indicated wtih 3 tokens or
             // 4 tokens where the second is our ID
-            if(command.tokens.size() == 3 || (commands.tokens.size() == 4 && commands.tokens[1] == server_id) {
+            if(command.tokens.size() == 3 || (command.tokens.size() == 4 && command.tokens[1] == server_id)) {
                 Command delegate;
                 delegate.from = -1;
+                delegate.role = "network";
                 delegate.tokens  = command.delegate_tokens;
 
                 m.to = command.from;
