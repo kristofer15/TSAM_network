@@ -400,13 +400,8 @@ private:
         if(server) {
             Server s;
             s.socket = client_socket;
-<<<<<<< HEAD
             s.ip = ""; //inet_ntoa(cli_addr.sin_addr);
             s.port = 0; // ntohs(cli_addr.sin_port);
-=======
-            s.ip = inet_ntoa(cli_addr.sin_addr);
-            s.port = cli_addr.sin_port;
->>>>>>> 26845b3647e461b2e421e5b38b246740c0cc2564
             s.distance = 1;
             s.last_comms = timestamp();
 
