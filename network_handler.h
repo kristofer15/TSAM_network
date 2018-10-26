@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <strings.h>
 #include <cstring>
@@ -375,7 +376,7 @@ private:
         if(server) {
             Server s;
             s.socket = client_socket;
-            s.ip = "Placeholder";
+            s.ip = inet_ntoa(cli_addr.sin_addr);
             s.port = cli_addr.sin_port;
             s.distance = 1;
 
