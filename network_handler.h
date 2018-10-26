@@ -3,9 +3,11 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <strings.h>
 #include <cstring>
+#include <ctime>
 #include <unistd.h>
 
 #include <iostream>
@@ -39,6 +41,7 @@ public:
         int port;
         std::vector<std::string> intermediates;
         int distance;
+        long int last_comms;
     };
 
     NetworkHandler(int network_port, int info_port, int control_port) {
@@ -51,11 +54,12 @@ public:
         this->client_sockets["network"] = std::vector<int>();
         this->client_sockets["info"] = std::vector<int>();
 
-        this->keep_running = true;
         this->control_socket = -1;
         this->network_socket = -1;
         this->info_socket = -1;
         this->top_socket = -1;
+
+        this->server_timeout = 300000; // 5m
 
         setup_sockets();
     }
@@ -63,7 +67,6 @@ public:
     ~NetworkHandler() {}
 
     Command get_message() {
-        keep_running = true;
         struct timeval t;
 
         Command command;
@@ -146,6 +149,11 @@ public:
         return command;
     }
 
+    // Check the timestamp of last comms to determine if a server is alive
+    bool is_alive(Server &server) {
+        return (timestamp() - server.last_comms) < server_timeout;
+    }
+
     void message(Message m) {
         char start = 1; // SOH
         char end = 4;   // EOT
@@ -157,10 +165,6 @@ public:
         else {
             write(m.to, m.message.c_str(), m.message.length());            
         }
-    }
-
-    void stop() {
-        keep_running = false;
     }
 
     void heartbeat() {
@@ -223,9 +227,24 @@ public:
         
         // fill new server info and return
         Server server = {server_socket, "", ip, port, {}, 1};
+        server.socket = server_socket;
+        server.ip = ip;
+        server.port = port;
+        server.distance = 1;
+        server.last_comms = timestamp();    // Special case. Set timestamp to when we sent a message
+                                            // Typically only set these when comms are received.
         known_servers[server_socket] = server;
         
         return server;
+    }
+
+    int get_network_port() {
+        std::cout << "Returning port: " << network_port << std::endl;
+        return network_port;
+    }
+
+    std::string get_server_ip() {
+        return "localhost"; // PLACEHOLDER
     }
 
 private:
@@ -240,9 +259,15 @@ private:
     fd_set socket_set;
 
     std::map<int, Server> known_servers;    //Keys: Server fd - Values: Server structs
-    bool keep_running;
+    long int server_timeout;
 
     MessageParser message_parser;
+
+    long timestamp() {
+        time_t t = std::time(0);
+        long int now = static_cast<long int> (t);
+        return now;
+    }
 
     void echo_udp(const Message m) {
         // client info
@@ -375,9 +400,10 @@ private:
         if(server) {
             Server s;
             s.socket = client_socket;
-            s.ip = "Placeholder";
-            s.port = cli_addr.sin_port;
+            s.ip = ""; //inet_ntoa(cli_addr.sin_addr);
+            s.port = 0; // ntohs(cli_addr.sin_port);
             s.distance = 1;
+            s.last_comms = timestamp();
 
             known_servers[client_socket] = s;
         }
