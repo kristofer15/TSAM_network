@@ -55,6 +55,8 @@ private:
         // Check if the command token is whitelisted for this role
         if(!access.permit(command.role, command.tokens[0])) {
             // This appears to be a response
+
+            // Don't message this. Leads to shaming loops.
             return "Operation not permitted/recognized";
         }
 
@@ -251,9 +253,10 @@ private:
                 std::cout << "Command forwarded" << std::endl;
                 return "Command forwarded";
             }
-            else {
-                std::cout << "Command forwarding failed" << std::endl;
-            }
+            
+            std::cout << "Command forwarding failed" << std::endl;
+            return "Command forwarding failed";
+
         }
         else if(c == "RSP") {
             if(command.tokens.size() < 4) {
@@ -274,9 +277,9 @@ private:
                 std::cout << "Response forwarded" << std::endl;
                 return "Response forwarded";
             }
-            else {
-                std::cout << "Response forwarding failed" << std::endl;
-            }
+
+            std::cout << "Response forwarding failed" << std::endl;
+            return "Response forwarding failed";
         }
         else if(c == "META_REQUEST_ID") {
             std::cout << "Meta request" << std::endl;
