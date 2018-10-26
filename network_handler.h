@@ -14,6 +14,7 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <future>
 
 #include "message_parser.h"
 
@@ -59,9 +60,12 @@ public:
         this->info_socket = -1;
         this->top_socket = -1;
 
-        this->server_timeout = 300000; // 5m
+        this->server_timeout = 300; // 5m
+        this->last_heartbeat = 0;
+        this->min_heartbeat_wait = 60; // 1m
 
         setup_sockets();
+        run_heartbeat();
     }
 
     ~NetworkHandler() {}
@@ -167,8 +171,29 @@ public:
         }
     }
 
+    void run_heartbeat() {
+        std::async(std::launch::async, [this] {
+
+            int seconds_wait = 3;
+            while(this->heart_beating) {
+                std::this_thread::sleep_for(std::chrono::seconds(seconds_wait) );
+                this->heartbeat();
+
+                // Wait until the next heartbeat should occur
+                seconds_wait = (this->min_heartbeat_wait - (timestamp() - this->last_heartbeat));
+            }
+        });
+    }
+
     void heartbeat() {
 
+        // Too frequent
+        if(timestamp() - last_heartbeat < min_heartbeat_wait) {
+            return;
+        }
+
+        std::cout << "Heartbeat" << std::endl;
+        last_heartbeat = timestamp();
     }
 
     std::map<int, Server> get_servers() {
@@ -261,6 +286,9 @@ private:
     std::map<std::string, std::vector<int>> client_sockets;
     int top_socket;
     fd_set socket_set;
+    bool heart_beating;
+    long int last_heartbeat;
+    long int min_heartbeat_wait;
 
     std::map<int, Server> known_servers;    //Keys: Server fd - Values: Server structs
     long int server_timeout;

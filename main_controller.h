@@ -219,6 +219,11 @@ private:
             network.message(m);
             return m.message;
         }
+        else if(c == "KEEPALIVE") {
+            network.heartbeat();
+
+            return "Requested heartbeat";
+        }
         else if(c == "CMD") {
 
             if(command.tokens.size() < 4) {
