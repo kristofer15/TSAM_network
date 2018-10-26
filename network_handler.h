@@ -16,6 +16,8 @@
 
 #include "message_parser.h"
 
+#define MAX_SERVERS 5
+
 class NetworkHandler {
 
 public:
@@ -89,13 +91,14 @@ public:
         if(FD_ISSET(network_socket, &socket_set)) {
             std::cout << "Got a network request" << std::endl;
 
+            // TODO max servers validation
             int client_socket = accept_connection(network_socket, true);
             client_sockets["network"].push_back(client_socket);
 
             command.from = -1;
             command.role = "root";
             command.tokens = {"META_REQUEST_ID", std::to_string(client_socket)};
-
+        
             return command;
         }
 
@@ -219,12 +222,13 @@ public:
         // Socket is not connected
         if(error_code == 111) { throw std::runtime_error("Socket unable to connect"); }
 
-        client_sockets["network"].push_back(server_socket);
-        top_socket = std::max(server_socket, top_socket);
-        
         // fill new server info and return
         Server server = {server_socket, "", ip, port, {}, 1};
+
+        // add to appropriate data structures
+        client_sockets["network"].push_back(server_socket);
         known_servers[server_socket] = server;
+        top_socket = std::max(server_socket, top_socket);
         
         return server;
     }
