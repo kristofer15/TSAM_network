@@ -156,6 +156,9 @@ private:
         else if(c == "ID") {
             m.to = command.from;
             m.message = server_id;
+            m.message += "," + network.get_server_ip();
+            m.message += "," + std::to_string(network.get_network_port());
+            std::cout << "Returning ID: " << m.message << std::endl;
             network.message(m);
 
             return m.message;
@@ -336,6 +339,14 @@ private:
     }
 
     std::string handle_response(Command &command) {
+        std::cout << "Handling RSP" << std::endl;
+
+
+        std::cout << "tokens: " << std::endl;
+        for(auto token : command.tokens) {
+            std::cout << token << std::endl;
+        }
+
         std::string c = responses[command.from].sent_tokens[0];
 
         // Use a pointer so that we can modify the object
@@ -362,9 +373,9 @@ private:
             s->id = command.delegate_tokens[id_index];
 
             // Try to get these if they're missing
-            if(s->ip == "" || s->port == 0) {
+            if(command.delegate_tokens.size() > 2 && (s->ip == "" || s->port == 0)) {
                 s->ip = command.delegate_tokens[id_index+1];
-                s->port = stoi(command.delegate_tokens[id_index+2]);
+                s->port = std::stoi(command.delegate_tokens[id_index+2]);
             }
 
             // Response received

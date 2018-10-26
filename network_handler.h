@@ -7,6 +7,7 @@
 #include <netdb.h>
 #include <strings.h>
 #include <cstring>
+#include <ctime>
 #include <unistd.h>
 
 #include <iostream>
@@ -42,6 +43,7 @@ public:
         int port;
         std::vector<std::string> intermediates;
         int distance;
+        long int last_comms;
     };
 
     NetworkHandler(int network_port, int info_port, int control_port) {
@@ -54,11 +56,12 @@ public:
         this->client_sockets["network"] = std::vector<int>();
         this->client_sockets["info"] = std::vector<int>();
 
-        this->keep_running = true;
         this->control_socket = -1;
         this->network_socket = -1;
         this->info_socket = -1;
         this->top_socket = -1;
+
+        this->server_timeout = 300000; // 5m
 
         setup_sockets();
     }
@@ -66,7 +69,6 @@ public:
     ~NetworkHandler() {}
 
     Command get_message() {
-        keep_running = true;
         struct timeval t;
 
         Command command;
@@ -150,6 +152,11 @@ public:
         return command;
     }
 
+    // Check the timestamp of last comms to determine if a server is alive
+    bool is_alive(Server &server) {
+        return (timestamp() - server.last_comms) < server_timeout;
+    }
+
     void message(Message m) {
         char start = 1; // SOH
         char end = 4;   // EOT
@@ -161,10 +168,6 @@ public:
         else {
             write(m.to, m.message.c_str(), m.message.length());            
         }
-    }
-
-    void stop() {
-        keep_running = false;
     }
 
     void heartbeat() {
@@ -224,13 +227,29 @@ public:
 
         // fill new server info and return
         Server server = {server_socket, "", ip, port, {}, 1};
-
-        // add to appropriate data structures
-        client_sockets["network"].push_back(server_socket);
+        server.socket = server_socket;
+        server.ip = ip;
+        server.port = port;
+        server.distance = 1;
+        server.last_comms = timestamp();    // Special case. Set timestamp to when we sent a message
+                                            // Typically only set these when comms are received.
         known_servers[server_socket] = server;
         top_socket = std::max(server_socket, top_socket);
         
         return server;
+    }
+
+    int get_network_port() {
+        std::cout << "Returning port: " << network_port << std::endl;
+        return network_port;
+    }
+
+    std::string get_server_ip() {
+        if(server_ip == "") {
+            server_ip = get_local_address();
+        }
+
+        return server_ip;
     }
 
 private:
@@ -245,9 +264,16 @@ private:
     fd_set socket_set;
 
     std::map<int, Server> known_servers;    //Keys: Server fd - Values: Server structs
-    bool keep_running;
+    long int server_timeout;
+    std::string server_ip;
 
     MessageParser message_parser;
+
+    long timestamp() {
+        time_t t = std::time(0);
+        long int now = static_cast<long int> (t);
+        return now;
+    }
 
     void echo_udp(const Message m) {
         // client info
@@ -380,9 +406,10 @@ private:
         if(server) {
             Server s;
             s.socket = client_socket;
-            s.ip = inet_ntoa(cli_addr.sin_addr);
-            s.port = cli_addr.sin_port;
+            s.ip = ""; //inet_ntoa(cli_addr.sin_addr);
+            s.port = 0; // ntohs(cli_addr.sin_port);
             s.distance = 1;
+            s.last_comms = timestamp();
 
             known_servers[client_socket] = s;
         }
@@ -447,5 +474,33 @@ private:
     void error(const char *msg) {
         perror(msg);
         exit(0);
+    }
+
+    std::string get_local_address() {
+        char buffer[1024];
+        memset(buffer, 0, sizeof(buffer));
+
+        int sock = socket ( AF_INET, SOCK_DGRAM, 0);
+    
+        const char* kGoogleDnsIp = "8.8.8.8";
+        int dns_port = 53;
+    
+        struct sockaddr_in serv;
+    
+        memset( &serv, 0, sizeof(serv) );
+        serv.sin_family = AF_INET;
+        serv.sin_addr.s_addr = inet_addr(kGoogleDnsIp);
+        serv.sin_port = htons( dns_port );
+    
+        int err = connect( sock , (const struct sockaddr*) &serv , sizeof(serv) );
+    
+        struct sockaddr_in name;
+        socklen_t namelen = sizeof(name);
+        err = getsockname(sock, (struct sockaddr*) &name, &namelen);
+        close(sock);
+
+        char ip[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET, &name.sin_addr, ip, sizeof ip);
+        return ip;
     }
 };
