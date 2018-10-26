@@ -226,7 +226,7 @@ public:
         if(error_code == 111) { throw std::runtime_error("Socket unable to connect"); }
 
         // fill new server info and return
-        Server server = {server_socket, "", ip, port, {}, 1};
+        Server server;
         server.socket = server_socket;
         server.ip = ip;
         server.port = port;
@@ -234,6 +234,7 @@ public:
         server.last_comms = timestamp();    // Special case. Set timestamp to when we sent a message
                                             // Typically only set these when comms are received.
         known_servers[server_socket] = server;
+        client_sockets["network"].push_back(server_socket);
         top_socket = std::max(server_socket, top_socket);
         
         return server;
