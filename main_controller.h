@@ -259,6 +259,12 @@ private:
 
         }
         else if(c == "RSP") {
+
+            if(!awaiting_response_from(command.from)) {
+                std::cout << "Received unwarranted RSP. Possibly forged" << std::endl;
+                return "Unwarranted RSP";
+            }
+
             if(command.tokens.size() < 4) {
                 m.to = command.from;
                 m.message = "Invalid number of arguments";

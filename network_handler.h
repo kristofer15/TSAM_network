@@ -113,7 +113,6 @@ public:
 
                 if(FD_ISSET(client_socket, &socket_set)) {
                     command.raw = read_socket(client_socket);
-                    std::cout << command.raw << std::endl;
                     command.from = client_socket;
                     command.role = socket_type;
 
