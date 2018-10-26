@@ -222,7 +222,8 @@ private:
         else if(c == "KEEPALIVE") {
             network.heartbeat();
 
-            return "Requested heartbeat";
+            
+            return "Heartbeat received";
         }
         else if(c == "CMD") {
 
