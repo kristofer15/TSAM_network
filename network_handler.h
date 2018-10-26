@@ -425,6 +425,10 @@ private:
             auto *v = &client_sockets[socket_type];
             v->erase(std::remove(v->begin(), v->end(), socket), v->end());
         }
+
+        // Remove if known server
+        known_servers.erase(socket);
+        
     }
 
     void close_socket(int fd) {
