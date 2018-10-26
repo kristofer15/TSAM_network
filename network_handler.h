@@ -244,7 +244,11 @@ public:
     }
 
     std::string get_server_ip() {
-        return "localhost"; // PLACEHOLDER
+        if(server_ip == "") {
+            server_ip = get_local_address();
+        }
+
+        return server_ip;
     }
 
 private:
@@ -260,6 +264,7 @@ private:
 
     std::map<int, Server> known_servers;    //Keys: Server fd - Values: Server structs
     long int server_timeout;
+    std::string server_ip;
 
     MessageParser message_parser;
 
@@ -468,5 +473,33 @@ private:
     void error(const char *msg) {
         perror(msg);
         exit(0);
+    }
+
+    std::string get_local_address() {
+        char buffer[1024];
+        memset(buffer, 0, sizeof(buffer));
+
+        int sock = socket ( AF_INET, SOCK_DGRAM, 0);
+    
+        const char* kGoogleDnsIp = "8.8.8.8";
+        int dns_port = 53;
+    
+        struct sockaddr_in serv;
+    
+        memset( &serv, 0, sizeof(serv) );
+        serv.sin_family = AF_INET;
+        serv.sin_addr.s_addr = inet_addr(kGoogleDnsIp);
+        serv.sin_port = htons( dns_port );
+    
+        int err = connect( sock , (const struct sockaddr*) &serv , sizeof(serv) );
+    
+        struct sockaddr_in name;
+        socklen_t namelen = sizeof(name);
+        err = getsockname(sock, (struct sockaddr*) &name, &namelen);
+        close(sock);
+
+        char ip[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET, &name.sin_addr, ip, sizeof ip);
+        return ip;
     }
 };
