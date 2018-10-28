@@ -55,7 +55,6 @@ private:
         // Check if the command token is whitelisted for this role
         if(!access.permit(command.role, command.tokens[0])) {
             // This appears to be a response
-
             // Don't message this. Leads to shaming loops.
             return "Operation not permitted/recognized";
         }
@@ -187,9 +186,6 @@ private:
                     Server server = network.connect_to_server(ip, port);
 
                     request_id(server.socket);
-                    m.message = "Successfully connected to " + 
-                                server.ip + " "               + 
-                                std::to_string(server.port);
 
                 } catch (std::runtime_error msg) {
                     m.message = msg.what(); 

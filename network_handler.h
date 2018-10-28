@@ -84,7 +84,7 @@ public:
         // Your role is determined by which port you connected through
         if(FD_ISSET(control_socket, &socket_set)) {
             std::cout << "Got a control request" << std::endl;
-
+            
             int client_socket = accept_connection(control_socket);
 
             client_sockets["control"].push_back(client_socket);
@@ -93,14 +93,20 @@ public:
         if(FD_ISSET(network_socket, &socket_set)) {
             std::cout << "Got a network request" << std::endl;
 
-            // TODO max servers validation
-            int client_socket = accept_connection(network_socket, true);
-            client_sockets["network"].push_back(client_socket);
+            if(known_servers.size() < MAX_SERVERS) {
+                int client_socket = accept_connection(network_socket, true);
+                client_sockets["network"].push_back(client_socket);
 
-            command.from = -1;
-            command.role = "root";
-            command.tokens = {"META_REQUEST_ID", std::to_string(client_socket)};
-        
+                command.from = -1;
+                command.role = "root";
+                command.tokens = {"META_REQUEST_ID", std::to_string(client_socket)};
+            }
+            else {
+                // accept connection to flush socket
+                int client_socket = accept_connection(network_socket);
+                close_socket(client_socket);
+            }
+
             return command;
         }
 
@@ -223,7 +229,7 @@ public:
         getsockopt(server_socket, SOL_SOCKET, SO_ERROR, &error_code, &error_code_size);
         
         // Socket is not connected
-        if(error_code == 111) { throw std::runtime_error("Socket unable to connect"); }
+        if(error_code == 111) { throw std::runtime_error("Unable to connect to server"); }
 
         // fill new server info and return
         Server server;
@@ -233,9 +239,10 @@ public:
         server.distance = 1;
         server.last_comms = timestamp();    // Special case. Set timestamp to when we sent a message
                                             // Typically only set these when comms are received.
+
+        // add new server to known_servers
         known_servers[server_socket] = server;
         client_sockets["network"].push_back(server_socket);
-        top_socket = std::max(server_socket, top_socket);
         
         return server;
     }
@@ -368,6 +375,7 @@ private:
             for(int client_socket : client_sockets[socket_type]) {
                 if(client_socket > 0) {
                     FD_SET(client_socket, &socket_set);
+                    top_socket = std::max(client_socket, top_socket);
                 }
             }
         }
@@ -375,20 +383,24 @@ private:
         // Reset server sockets
         if(control_socket > 0) {
             FD_SET(control_socket, &socket_set);
+            top_socket = std::max(control_socket, top_socket);
         }
         else {
             error("Invalid control socket");
         }
 
+ 
         if(network_socket > 0) {
             FD_SET(network_socket, &socket_set);
+            top_socket = std::max(network_socket, top_socket);
         }
         else {
             error("Invalid network socket");            
         }
-
+      
         if(info_socket > 0) {
             FD_SET(info_socket, &socket_set);
+            top_socket = std::max(info_socket, top_socket);
         }
         else {
             error("Invalid info socket");            
@@ -415,7 +427,6 @@ private:
             known_servers[client_socket] = s;
         }
 
-        top_socket = std::max(client_socket, top_socket);
         return client_socket;
     }
 
@@ -460,11 +471,12 @@ private:
 
         // Remove if known server
         known_servers.erase(socket);
-        
     }
 
     void close_socket(int fd) {
         if (fd >= 0) {
+            // clear socket from socket_set
+            FD_CLR(fd, &socket_set);
             if (close(fd) < 0) {
                 error("Unable to close socket");
             }
