@@ -167,7 +167,7 @@ public:
         char start = 1; // SOH
         char end = 4;   // EOT
 
-        m.message = m.message + "\n";
+        m.message = start + m.message + end;
         if(m.to == info_socket) {
             echo_udp(m);
         }
@@ -453,9 +453,9 @@ private:
             trimmed.erase(trimmed.length()-1);
         }
 
-        // if(trimmed[0] == 1) {
-        //     trimmed.erase(trimmed[0]);
-        // }
+        if(trimmed[0] == 1) {
+            trimmed.erase(0, 1);
+        }
 
         return trimmed;
     }

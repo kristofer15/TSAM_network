@@ -55,6 +55,7 @@ private:
         // Check if the command token is whitelisted for this role
         if(!access.permit(command.role, command.tokens[0])) {
             // This appears to be a response
+
             // Don't message this. Leads to shaming loops.
             return "Operation not permitted/recognized";
         }
@@ -273,7 +274,7 @@ private:
                 return m.message;
             }
 
-            // Commands intended for are indicated with our ID or no id in the second field
+            // Commands intended for us are indicated with our ID or no id in the second field
             if(command.tokens[1] == "" || command.tokens[1] == server_id) {
                 return handle_response(command);
             }
