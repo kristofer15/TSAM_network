@@ -24,6 +24,9 @@ class NetworkHandler {
 
 public:
 
+    // Structs to help coordinate NetworkHandler and MainController
+
+    // Parsed messages are kept as commands. We later check if they're valid.
     struct Command {
         int from;
         std::string role;
@@ -32,19 +35,21 @@ public:
         std::string raw;
     };
 
+    // Simple struct for the message function. Not really necessary.
     struct Message {
         int to;
         std::string message;
     };
 
+    // Server data for tracking connectivity and network state
     struct Server {
         int socket;
         std::string id;
         std::string ip;
         int port;
         std::vector<std::string> intermediates;
-        int distance;
-        long int last_comms;
+        int distance;        // Hop distance
+        long int last_comms; // Time of last message received from the server
     };
 
     NetworkHandler(int network_port, int info_port, int control_port=4050) {
@@ -71,6 +76,7 @@ public:
 
     ~NetworkHandler() {}
 
+    // Listen for network messages and add them to the command queue
     void get_message() {
         Command command;
 
@@ -129,7 +135,9 @@ public:
 
                 // Command has been completed
                 if(FD_ISSET(client_socket, &socket_set)) {
-                    // Add fragments
+
+                    // Collect message and add to the command queue when complete
+                    // Keep track of the socket and its role for access control
                     collect_fragments(client_socket, socket_type, read_socket(client_socket));
                 }
             }
@@ -137,27 +145,31 @@ public:
     }
 
     void collect_fragments(int socket, std::string role, std::string message_fragment) {
-        std::cout << "Fragments: " << message_fragment << std::endl;
 
         if(message_fragment.length() == 0) {
             return;
         }
 
+        // Get rid of start and end transmission characters
         message_fragment = trim_message(message_fragment);
 
         char start = 1;
         char end = 4;
 
         std::size_t chunk_end = message_fragment.find(end);
+
+        // The message does not contain an EOT character
         if(chunk_end == std::string::npos) {
             command_queue.push_back(create_command(socket, role, message_fragment));
         }
+        // The message does contain an EOT. Recurse to extract following messages.
         else {
             command_queue.push_back(create_command(socket, role, message_fragment.substr(0, chunk_end)));
             collect_fragments(socket, role, message_fragment.substr(chunk_end+1));
         }
     }
 
+    // Parse a message to create a command
     Command create_command(int from, std::string role, std::string message) {
         Command command;
         command.raw = message;
@@ -189,6 +201,7 @@ public:
         return command;
     }
 
+    // Destructive getter
     Command consume_command() {
         Command c;
         if(command_queue.empty()) {
@@ -273,6 +286,7 @@ public:
     }
 
     Server& get_server(int socket) {
+        // Return by reference to allow modification
         return known_servers[socket];
     }
 
@@ -287,6 +301,8 @@ public:
         return non_server;
     }
 
+    // Initiate server contact and track the server object
+    // Server objects are also tracked elsewhere as a reaction when another server initiates contact.
     Server connect_to_server(const std::string ip, const int port) {
         struct sockaddr_in destination_in;
         struct hostent *destination;
@@ -332,7 +348,6 @@ public:
     }
 
     int get_network_port() {
-        std::cout << "Returning port: " << network_port << std::endl;
         return network_port;
     }
 
@@ -361,7 +376,10 @@ private:
     int network_socket;
     int info_port;
     int info_socket;
+
+    // All client sockets categorized by role
     std::map<std::string, std::vector<int>> client_sockets;
+
     int top_socket;
     fd_set socket_set;
 
@@ -369,11 +387,12 @@ private:
     long int server_timeout;
     std::string server_ip;
 
+    // Don't beat too frequently
     long int last_heartbeat;
     long int heartbeat_interval;
 
+    // Collected commands for consumption by controller
     std::list<Command> command_queue;
-    std::map<int, std::string> message_fragments;
 
     MessageParser message_parser;
 
@@ -396,6 +415,7 @@ private:
             (struct sockaddr *)&cli_addr, sizeof(cli_addr));
     }
     
+    // Create the server sockets
     void setup_sockets() {
         control_socket = setup_tcp(control_port);
         network_socket = setup_tcp(network_port);
@@ -405,6 +425,7 @@ private:
         top_socket = std::max(top_socket, info_socket);
     }
 
+    // Create a tcp server socket on a given port
     int setup_tcp(int port) {
         struct sockaddr_in serv_addr;
         int fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
@@ -431,6 +452,7 @@ private:
         return fd;
     }
 
+    // Create a UDP server socket on a given port
     int setup_udp(int port) {
         struct sockaddr_in serv_addr;
         int fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -453,6 +475,7 @@ private:
         return fd;
     }
 
+    // Make a socket reusable to prevent issues with restarting the server
     void make_reusable(int socket) {
         int enable = 1;
 
@@ -461,6 +484,7 @@ private:
         }
     }
 
+    // Prepare the socket set for a select
     void reset_socket_set() {
         FD_ZERO(&socket_set);
 
@@ -501,6 +525,7 @@ private:
         }
     }
 
+    // Accept a tcp connection. Optionally track the client as a network server
     int accept_connection(int socket, bool server=false) {
         // setup client address info
         socklen_t clilen;
@@ -524,6 +549,7 @@ private:
         return client_socket;
     }
 
+    // Get a message from a socket
     std::string read_socket(int socket) {
         char buffer[256];
         bzero(buffer, 256);
@@ -537,11 +563,9 @@ private:
         return trim_message(buffer);
     }
 
+    // Get rid of some pesky message edge characters
     std::string trim_message(std::string s) {
         std::string trimmed = s;
-
-        // Temporarily trimming transmission symbols
-        // Validate messages with them later
 
         while(trimmed[trimmed.length()-1] == '\n' || trimmed[trimmed.length()-1] == 4) {
             trimmed.erase(trimmed.length()-1);
@@ -577,7 +601,7 @@ private:
         }
     }
 
-    // TODO: Remove
+    // TODO: Remove. Use exceptions
     void error(const char *msg) {
         perror(msg);
         exit(0);

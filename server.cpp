@@ -15,11 +15,12 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    // Dependencies
     NetworkHandler network(atoi(argv[1]), atoi(argv[2]));
     UserHandler users;
     AccessControl access;
 
-
+    // Start controller. Inject dependencies.
     MainController controller(network, users, access);
     controller.run();
 }
