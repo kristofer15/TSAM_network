@@ -137,14 +137,12 @@ public:
     }
 
     void collect_fragments(int socket, std::string role, std::string message_fragment) {
-        std::cout << "Fragment: " << message_fragment << std::endl;
 
         if(message_fragment.length() == 0) {
             return;
         }
 
         message_fragment = trim_message(message_fragment);
-        std::cout << message_fragment << std::endl;
 
         char start = 1;
         char end = 4;
