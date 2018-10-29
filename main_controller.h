@@ -33,6 +33,18 @@ public:
                 command = network.consume_command();
 
                 if(command.from != -1 && command.tokens.size() != 0 && command.role != "") {
+                    std::cout << "Received command" << std::endl;
+
+                    std::cout << "Tokens:" << std::endl;
+                    for(auto token : command.tokens) {
+                        std::cout << token << std::endl;
+                        std::cout << token.length() << std::endl;
+                    }
+
+                    std::cout << "Delegates:" << std::endl;
+                    for(auto token : command.delegate_tokens) {
+                        std::cout << token << std::endl;
+                    }
                     handle_command(command);
                 }
             }
@@ -239,6 +251,7 @@ private:
             Server* s = &network.get_server(command.from);
             s->last_comms = network.timestamp();
 
+            std::cout << "Keepalive received" << std::endl;
             return "Heartbeat received";
 
         }
@@ -329,6 +342,7 @@ private:
         else if(c == "META_REQUEST_ID") {
             std::cout << "Meta request" << std::endl;
             // std::cout << "Requesting ID from " << command.tokens[1] << std::endl;
+
             request_id(stoi(command.tokens[1]));
             // std::cout << "ID requested" << std::endl;
             return "ID requested";

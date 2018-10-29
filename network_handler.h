@@ -137,44 +137,25 @@ public:
     }
 
     void collect_fragments(int socket, std::string role, std::string message_fragment) {
+        std::cout << "Fragment: " << message_fragment << std::endl;
 
         if(message_fragment.length() == 0) {
             return;
         }
 
+        message_fragment = trim_message(message_fragment);
+        std::cout << message_fragment << std::endl;
+
         char start = 1;
         char end = 4;
 
-        std::size_t chunk_start = message_fragment.find(start);
         std::size_t chunk_end = message_fragment.find(end);
-
-        // Message contains no transmission characters. Treat as whole
-        if(chunk_start == std::string::npos && chunk_end == std::string::npos) {
+        if(chunk_end == std::string::npos) {
             command_queue.push_back(create_command(socket, role, message_fragment));
         }
-        // This is the start of a message
-        else if(chunk_start != std::string::npos && chunk_end == std::string::npos) {
-            // Any message previously under construction has failed. Overwrite if they exist.
-            message_fragments[socket] = message_fragment.substr(chunk_start+1);
-        }
-        // The fragment contains a message end
-        else if(chunk_end != std::string::npos) {
-
-            // The chunk does not contain npos but it was collected previously
-            if((chunk_start == std::string::npos || chunk_start > chunk_end) && message_fragments[socket].length()) {
-                message_fragments[socket] += message_fragment.substr(0, chunk_end);
-                command_queue.push_back(create_command(socket, role, message_fragments[socket]));
-                message_fragments.erase(socket);
-            }
-            // New message starts, discard possible unfinished messages
-            else if(chunk_start != std::string::npos && chunk_start < chunk_end) {
-                Command command = create_command(socket, role, message_fragment.substr(chunk_start+1, chunk_end-chunk_start));
-                command_queue.push_back(command);
-                message_fragments.erase(socket);
-            }
-
-            // Since the message contained an end we must check if it contains a following start
-            collect_fragments(socket, role, message_fragment.substr(chunk_end));
+        else {
+            command_queue.push_back(create_command(socket, role, message_fragment.substr(0, chunk_end)));
+            collect_fragments(socket, role, message_fragment.substr(chunk_end+1));
         }
     }
 
@@ -248,7 +229,7 @@ public:
         m.message = "KEEPALIVE";
 
         for(auto sp : known_servers) {
-            if(sp.second.distance == 1) {
+            if(sp.second.id != "" && sp.second.distance == 1) {
                 m.to = sp.first;
                 message(m);
             }
