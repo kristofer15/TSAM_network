@@ -192,7 +192,8 @@ private:
             return m.message;
         }
         else if(c == "LISTROUTES") {
-            
+            // only gives 1-hop servers so far
+
             m.to = command.from;
             m.message = routing_table();
 
@@ -246,19 +247,6 @@ private:
             std::cout << "Keepalive received" << std::endl;
             return "Heartbeat received";
 
-        }
-        else if(c == "LISTROUTES") {
-            for(auto sp : network.get_servers()) {
-
-                // 1-hop
-                if(sp.second.distance == 1) {
-                    m.to = sp.first;
-                    m.message = "LISTSERVERS";
-                    network.message(m);
-                }
-            }
-
-            return "Requested level 1 branches";
         }
         else if(c == "CMD") {
 
@@ -435,40 +423,19 @@ private:
             responses.erase(command.from);
         }
         else if(c == "LISTROUTES") {
-            // TODO!!
-            int route_index = 0;
+            // Unable to finish in time :(
 
-            if(command.delegate_tokens[route_index] == "LISTROUTES") {
-                if(command.delegate_tokens.size() < 2) {
-                    return "Received an invalid response";
+            // just relays response to first registered client 
+            int control_socket = network.get_control_socket();
+            if(control_socket > 0) {
+                Message results;
+                results.to = control_socket;
+                results.message = "";
+                for(auto const& token : command.delegate_tokens) {
+                    if(token != "LISTROUTES") results.message += token;
                 }
-
-                ++route_index;
+                network.message(results);
             }
-
-            std::string raw_table = command.delegate_tokens[route_index];
-            //std::string raw_table = "      ID1:ID2: ID3:    ID4:  ID6: ID5:\n ID1: -: ID1: ID1: ID3: ID3-ID4: ID3-ID4:timestamp";
-
-            // split into lines
-            std::vector<std::string> raw_lines = message_parser.tokenize(raw_table, '\n');
-
-            if(raw_lines.size() != 2) {
-                return "Received an invalid response";
-            }
-
-            // first line is header, second is routes
-            std::string raw_header = raw_lines[0];
-            std::string raw_routes = raw_lines[1];
-
-            // remove all whitespaces, tabs, etc.
-            raw_header.erase(remove_if(raw_header.begin(), raw_header.end(), isspace), raw_header.end());
-            raw_routes.erase(remove_if(raw_routes.begin(), raw_routes.end(), isspace), raw_routes.end());
-
-            // split server id's by delimeter ':'
-            std::vector<std::string> headers = message_parser.tokenize(raw_header, ':');
-            std::vector<std::string> routes = message_parser.tokenize(raw_routes, ':');
-
-            
 
             // Response received
             responses.erase(command.from);

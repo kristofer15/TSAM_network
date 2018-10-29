@@ -350,6 +350,10 @@ public:
         return now;
     }
 
+    int get_control_socket() {
+        return client_sockets["control"][0];
+    }
+
 private:
     int control_port;
     int control_socket;
