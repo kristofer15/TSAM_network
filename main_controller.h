@@ -419,6 +419,13 @@ private:
             // Response received
             responses.erase(command.from);
         }
+        else if(c == "LISTROUTES") {
+            
+            std::cout << "RSP Listroutes received" << std::endl;
+
+            // Response received
+            responses.erase(command.from);
+        }
 
         // std::cout << "RECEIVED RESPONSE" << std::endl;
         return "RECEIVED RESPONSE";
@@ -446,27 +453,36 @@ private:
     }
 
     std::string routing_table() {
-        std::string table = "\t   " + server_id + ": ";
+        std::string table = server_id + ":";
 
         // generate header
         for(auto const& server: network.get_servers()) {
-            table += server.second.id + ": ";           
+            table += server.second.id + ":";           
         }
-        table += "\n" + server_id + ": " + ":- \t      ";
+        table += "\n" + server_id + ":" + "-:";
 
         // generate routes
         for(auto const& server: network.get_servers()) {
             if(server.second.distance == 1) {
-                table += server_id + ": ";                           
+                table += server_id + ":";                           
             }
             else {
                 for(int i = 0; i < server.second.intermediates.size(); i++) {
                     if(i > 0) table += "-";
                     table += server.second.intermediates[i];
                 }
-                table += ": ";                         
+                table += ":";                         
             }
         }
+
+        // generate timestamp ISO 8601
+        std::time_t now = unix_timestamp();
+        ctime(&now);
+        char buf[sizeof "2011-10-08T07:07:09Z"];
+        strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+
+        // add timestamp
+        table += buf;
 
         return table;
     }
