@@ -401,11 +401,7 @@ private:
         }
         else if(c == "LISTROUTES") {
             
-            std::cout << "DELEGATE tokens: " << std::endl;
-            for(auto token : command.delegate_tokens) {
-                std::cout << token << "+ ";
-            }
-            std::cout << std::endl;
+            std::cout << "RSP Listroutes received" << std::endl;
 
             // Response received
             responses.erase(command.from);
