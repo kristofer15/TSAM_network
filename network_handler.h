@@ -137,6 +137,7 @@ public:
     }
 
     void collect_fragments(int socket, std::string role, std::string message_fragment) {
+        std::cout << "Fragments: " << message_fragment << std::endl;
 
         if(message_fragment.length() == 0) {
             return;

@@ -33,6 +33,9 @@ public:
                 command = network.consume_command();
 
                 if(command.from != -1 && command.tokens.size() != 0 && command.role != "") {
+
+                    std::cout << command.tokens[0] << std::endl;
+                    std::cout << command.tokens[0].length() << std::endl;
                     handle_command(command);
                 }
             }
@@ -381,9 +384,13 @@ private:
 
         std::cout << "tokens: " << std::endl;
         for(auto token : command.tokens) {
-            std::cout << token << ", ";
+            std::cout << token << std::endl;
         }
-        std::cout << std::endl;
+        std::cout << "Delegates: " << std::endl;
+
+        for(auto token : command.delegate_tokens) {
+            std::cout << token << std::endl;
+        }
 
         std::string c = responses[command.from].sent_tokens[0];
 
@@ -402,18 +409,25 @@ private:
 
             if(command.delegate_tokens[id_index] == "ID") {
                 if(command.delegate_tokens.size() < 2) {
-                    return "Received an invalid response";
+
+                    // Some people assume you'll pick up the ID from the RSP header...
+                    s->id = command.tokens[2];
+                    std::cout << "Picked up ID" << std::endl;
                 }
+                else {
 
-                ++id_index;
+                    // This response is probably formatted "COMMAND,ID,IP,PORT"
+                    s->id = command.delegate_tokens[1];
+
+                    // Try to get these if they're missing
+                    if(command.delegate_tokens.size() > 2 && (s->ip == "" || s->port == 0)) {
+                        s->ip = command.delegate_tokens[id_index+1];
+                        s->port = std::stoi(command.delegate_tokens[id_index+2]);
+                    }
+                }
             }
-
-            s->id = command.delegate_tokens[id_index];
-
-            // Try to get these if they're missing
-            if(command.delegate_tokens.size() > 2 && (s->ip == "" || s->port == 0)) {
-                s->ip = command.delegate_tokens[id_index+1];
-                s->port = std::stoi(command.delegate_tokens[id_index+2]);
+            else {
+                s->id = command.delegate_tokens[0];
             }
 
             // Response received
