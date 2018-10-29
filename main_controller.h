@@ -131,7 +131,7 @@ private:
             else {
 
                 m.to = recipient;
-                m.message = "From " + sender + ":";
+                m.message = "From " + sender + ";";
 
                 for(int i = 2; i < command.tokens.size(); i++) {
                     m.message += " " + command.tokens[i];
@@ -478,25 +478,25 @@ private:
     }
 
     std::string routing_table() {
-        std::string table = server_id + ":";
+        std::string table = server_id + ";";
 
         // generate header
         for(auto const& server: network.get_servers()) {
-            table += server.second.id + ":";           
+            table += server.second.id + ";";           
         }
-        table += "\n" + server_id + ":" + "-:";
+        table += "\n" + server_id + ";" + "-;";
 
         // generate routes
         for(auto const& server: network.get_servers()) {
             if(server.second.distance == 1) {
-                table += server_id + ":";                           
+                table += server_id + ";";                           
             }
             else {
                 for(int i = 0; i < server.second.intermediates.size(); i++) {
                     if(i > 0) table += "-";
                     table += server.second.intermediates[i];
                 }
-                table += ":";                         
+                table += ";";                         
             }
         }
 
