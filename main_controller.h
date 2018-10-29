@@ -23,6 +23,8 @@ public:
 
     void run() {
         while(true) {
+            network.heartbeat();
+
             Command command = network.get_message();
 
             if(command.tokens.size() == 0 || command.role == "") {
@@ -215,6 +217,13 @@ private:
 
             network.message(m);
             return m.message;
+        }
+        else if(c == "KEEPALIVE") {
+            Server* s = &network.get_server(command.from);
+            s->last_comms = network.timestamp();
+
+            return "Heartbeat received";
+
         }
         else if(c == "CMD") {
 
