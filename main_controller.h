@@ -46,6 +46,7 @@ private:
     NetworkHandler network;
     UserHandler users;
     AccessControl access;
+    MessageParser message_parser;
     std::string server_id;
     std::vector<std::string> md5;
 
@@ -400,14 +401,45 @@ private:
             responses.erase(command.from);
         }
         else if(c == "LISTROUTES") {
+            // TODO!!
+            int route_index = 0;
+
+            if(command.delegate_tokens[route_index] == "LISTROUTES") {
+                if(command.delegate_tokens.size() < 2) {
+                    return "Received an invalid response";
+                }
+
+                ++route_index;
+            }
+
+            std::string raw_table = command.delegate_tokens[route_index];
+            //std::string raw_table = "      ID1:ID2: ID3:    ID4:  ID6: ID5:\n ID1: -: ID1: ID1: ID3: ID3-ID4: ID3-ID4:timestamp";
+
+            // split into lines
+            std::vector<std::string> raw_lines = message_parser.tokenize(raw_table, '\n');
+
+            if(raw_lines.size() != 2) {
+                return "Received an invalid response";
+            }
+
+            // first line is header, second is routes
+            std::string raw_header = raw_lines[0];
+            std::string raw_routes = raw_lines[1];
+
+            // remove all whitespaces, tabs, etc.
+            raw_header.erase(remove_if(raw_header.begin(), raw_header.end(), isspace), raw_header.end());
+            raw_routes.erase(remove_if(raw_routes.begin(), raw_routes.end(), isspace), raw_routes.end());
+
+            // split server id's by delimeter ':'
+            std::vector<std::string> headers = message_parser.tokenize(raw_header, ':');
+            std::vector<std::string> routes = message_parser.tokenize(raw_routes, ':');
+
             
-            std::cout << "RSP Listroutes received" << std::endl;
 
             // Response received
             responses.erase(command.from);
         }
 
-        // std::cout << "RECEIVED RESPONSE" << std::endl;
         return "RECEIVED RESPONSE";
     }
 
