@@ -26,12 +26,17 @@ public:
             network.heartbeat();
             network.cleanup();
 
-            Command command = network.get_message();
+            network.get_message();
 
-            if(command.tokens.size() == 0 || command.role == "") {
-                continue;
+            Command command;
+            do {
+                command = network.consume_command();
+
+                if(command.from != -1 && command.tokens.size() != 0 && command.role != "") {
+                    handle_command(command);
+                }
             }
-            handle_command(command);
+            while(command.from != -1);
         }
     }
 
@@ -225,6 +230,19 @@ private:
 
             return "Heartbeat received";
 
+        }
+        else if(c == "LISTROUTES") {
+            for(auto sp : network.get_servers()) {
+
+                // 1-hop
+                if(sp.second.distance == 1) {
+                    m.to = sp.first;
+                    m.message = "LISTSERVERS";
+                    network.message(m);
+                }
+            }
+
+            return "Requested level 1 branches";
         }
         else if(c == "CMD") {
 
