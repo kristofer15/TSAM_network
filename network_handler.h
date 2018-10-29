@@ -61,7 +61,7 @@ public:
         this->info_socket = -1;
         this->top_socket = -1;
 
-        this->server_timeout = 300000; // 5m
+        this->server_timeout = 300; // 5m
         this->last_heartbeat = 0;
         this->heartbeat_interval = 60; // 1m
 
