@@ -24,6 +24,7 @@ public:
     void run() {
         while(true) {
             network.heartbeat();
+            network.cleanup();
 
             Command command = network.get_message();
 
@@ -346,7 +347,6 @@ private:
 
     std::string handle_response(Command &command) {
         std::cout << "Handling RSP" << std::endl;
-
 
         std::cout << "tokens: " << std::endl;
         for(auto token : command.tokens) {

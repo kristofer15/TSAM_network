@@ -198,6 +198,32 @@ public:
         return true;
     }
 
+    // Drop servers that haven't sent comms in too long
+    void cleanup() {
+        std::vector<std::string> erased_1hop_servers;
+
+        // First iteration: Remove 1-hop servers
+        for(auto sp : known_servers) {
+
+            // 1 hop server
+            if(sp.second.distance == 1) {
+                if((timestamp() - sp.second.last_comms) > server_timeout) {
+                    known_servers.erase(sp.first);
+                    erased_1hop_servers.push_back(sp.second.id);
+                }
+            }
+        }
+
+        // Second iteration: Remove servers whose first intermediate is a removed 1-hop server
+        for(auto sp : known_servers) {
+            for(std::string erased_server : erased_1hop_servers) {
+                if(sp.second.intermediates.size() > 0 && sp.second.intermediates[0] == erased_server) {
+                    known_servers.erase(sp.first);
+                }
+            }
+        }
+    }
+
     std::map<int, Server> get_servers() {
         return known_servers;
     }
