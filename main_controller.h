@@ -168,10 +168,21 @@ private:
             m.to = command.from;
             m.message = "";
             for(auto const& server: network.get_servers()) {
-                m.message += server.second.id + ","                 + 
+                // show only one hop servers
+                if(server.second.distance == 1) {
+                    m.message += server.second.id + ","         + 
                              server.second.ip + ","             +
-                             std::to_string(server.second.port) + ";";   
+                             std::to_string(server.second.port) + ";"; 
+                }  
             }
+
+            network.message(m);
+            return m.message;
+        }
+        else if(c == "LISTROUTES") {
+            
+            m.to = command.from;
+            m.message = routing_table();
 
             network.message(m);
             return m.message;
@@ -289,9 +300,9 @@ private:
         }
         else if(c == "META_REQUEST_ID") {
             std::cout << "Meta request" << std::endl;
-            std::cout << "Requesting ID from " << command.tokens[1] << std::endl;
+            // std::cout << "Requesting ID from " << command.tokens[1] << std::endl;
             request_id(stoi(command.tokens[1]));
-            std::cout << "ID requested" << std::endl;
+            // std::cout << "ID requested" << std::endl;
             return "ID requested";
         }
         else {  // Don't go here. Validate first.
@@ -341,8 +352,9 @@ private:
 
         std::cout << "tokens: " << std::endl;
         for(auto token : command.tokens) {
-            std::cout << token << std::endl;
+            std::cout << token << ", ";
         }
+        std::cout << std::endl;
 
         std::string c = responses[command.from].sent_tokens[0];
 
@@ -379,7 +391,7 @@ private:
             responses.erase(command.from);
         }
 
-        std::cout << "RECEIVED RESPONSE" << std::endl;
+        // std::cout << "RECEIVED RESPONSE" << std::endl;
         return "RECEIVED RESPONSE";
     }
 
@@ -402,5 +414,31 @@ private:
         time_t t = std::time(0);
         long int now = static_cast<long int> (t);
         return now;
+    }
+
+    std::string routing_table() {
+        std::string table = "\t   " + server_id + ": ";
+
+        // generate header
+        for(auto const& server: network.get_servers()) {
+            table += server.second.id + ": ";           
+        }
+        table += "\n" + server_id + ": " + ":- \t      ";
+
+        // generate routes
+        for(auto const& server: network.get_servers()) {
+            if(server.second.distance == 1) {
+                table += server_id + ": ";                           
+            }
+            else {
+                for(int i = 0; i < server.second.intermediates.size(); i++) {
+                    if(i > 0) table += "-";
+                    table += server.second.intermediates[i];
+                }
+                table += ": ";                         
+            }
+        }
+
+        return table;
     }
 };
