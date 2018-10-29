@@ -12,6 +12,7 @@
 
 #include <iostream>
 #include <vector>
+#include <list>
 #include <map>
 #include <algorithm>
 
@@ -70,11 +71,11 @@ public:
 
     ~NetworkHandler() {}
 
-    Command get_message() {
+    void get_message() {
         Command command;
 
         struct timeval t;
-        t.tv_sec = 10;
+        t.tv_sec = 2;
         t.tv_usec = 0;
 
         reset_socket_set();
@@ -100,17 +101,16 @@ public:
                 int client_socket = accept_connection(network_socket, true);
                 client_sockets["network"].push_back(client_socket);
 
-                command.from = -1;
+                command.from = 0;
                 command.role = "root";
                 command.tokens = {"META_REQUEST_ID", std::to_string(client_socket)};
+                command_queue.push_back(command);
             }
             else {
                 // accept connection to flush socket
                 int client_socket = accept_connection(network_socket);
                 close_socket(client_socket);
             }
-
-            return command;
         }
 
         if(FD_ISSET(info_socket, &socket_set)) {
@@ -120,45 +120,85 @@ public:
             command.from = info_socket;
             command.role = "info";
             command.tokens = {"LISTSERVERS"};
+            command_queue.push_back(command);
         }
 
         // Get messages from all clients
         for(auto socket_type : {"control", "network", "info"}) {
             for(int client_socket : client_sockets[socket_type]) {
 
+                // Command has been completed
                 if(FD_ISSET(client_socket, &socket_set)) {
-                    command.raw = read_socket(client_socket);
-                    command.from = client_socket;
-                    command.role = socket_type;
-
-                    // The message contains commas
-                    // Assume that this is a meta command with a delegate command trailing
-                    if(command.raw.find(',') != std::string::npos) {
-                        command.tokens = message_parser.tokenize(command.raw, ',');
-                        command.delegate_tokens = message_parser.tokenize(command.tokens.back(), ' ');
-
-                        // The delegate command appears to be comma delimited
-                        if(command.tokens.size() > 4 && command.delegate_tokens.size() == 1) {
-                            
-                            // Erase old delegate since it's probably just the last word in a multi word command
-                            std::vector<std::string> v;
-                            command.delegate_tokens = v;
-
-                            for(int i = 3; i < command.tokens.size(); i++) {
-                                command.delegate_tokens.push_back(command.tokens[i]);
-                            }
-                        }
-                    }
-                    else {
-                        command.tokens = message_parser.tokenize(command.raw, ' ');
-                    }
-
-                    return command;
+                    // Add fragments
+                    collect_fragments(client_socket, socket_type, read_socket(client_socket));
                 }
             }
         }
+    }
+
+    void collect_fragments(int socket, std::string role, std::string message_fragment) {
+        std::cout << "Fragments: " << message_fragment << std::endl;
+
+        if(message_fragment.length() == 0) {
+            return;
+        }
+
+        message_fragment = trim_message(message_fragment);
+
+        char start = 1;
+        char end = 4;
+
+        std::size_t chunk_end = message_fragment.find(end);
+        if(chunk_end == std::string::npos) {
+            command_queue.push_back(create_command(socket, role, message_fragment));
+        }
+        else {
+            command_queue.push_back(create_command(socket, role, message_fragment.substr(0, chunk_end)));
+            collect_fragments(socket, role, message_fragment.substr(chunk_end+1));
+        }
+    }
+
+    Command create_command(int from, std::string role, std::string message) {
+        Command command;
+        command.raw = message;
+        command.from = from;
+        command.role = role;
+
+        // The message contains commas
+        // Assume that this is a meta command with a delegate command trailing
+        if(command.raw.find(',') != std::string::npos) {
+            command.tokens = message_parser.tokenize(command.raw, ',');
+            command.delegate_tokens = message_parser.tokenize(command.tokens.back(), ' ');
+
+            // The delegate command appears to be comma delimited
+            if(command.tokens.size() > 4 && command.delegate_tokens.size() == 1) {
+                
+                // Erase old delegate since it's probably just the last word in a multi word command
+                std::vector<std::string> v;
+                command.delegate_tokens = v;
+
+                for(int i = 3; i < command.tokens.size(); i++) {
+                    command.delegate_tokens.push_back(command.tokens[i]);
+                }
+            }
+        }
+        else {
+            command.tokens = message_parser.tokenize(command.raw, ' ');
+        }
 
         return command;
+    }
+
+    Command consume_command() {
+        Command c;
+        if(command_queue.empty()) {
+            c.from = -1;
+            return c;
+        }
+
+        c = command_queue.front();
+        command_queue.pop_front();
+        return c;
     }
 
     // Check the timestamp of last comms to determine if a server is alive
@@ -188,7 +228,7 @@ public:
         m.message = "KEEPALIVE";
 
         for(auto sp : known_servers) {
-            if(sp.second.distance == 1) {
+            if(sp.second.id != "" && sp.second.distance == 1) {
                 m.to = sp.first;
                 message(m);
             }
@@ -327,6 +367,9 @@ private:
 
     long int last_heartbeat;
     long int heartbeat_interval;
+
+    std::list<Command> command_queue;
+    std::map<int, std::string> message_fragments;
 
     MessageParser message_parser;
 
