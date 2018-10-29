@@ -33,18 +33,6 @@ public:
                 command = network.consume_command();
 
                 if(command.from != -1 && command.tokens.size() != 0 && command.role != "") {
-                    std::cout << "Received command" << std::endl;
-
-                    std::cout << "Tokens:" << std::endl;
-                    for(auto token : command.tokens) {
-                        std::cout << token << std::endl;
-                        std::cout << token.length() << std::endl;
-                    }
-
-                    std::cout << "Delegates:" << std::endl;
-                    for(auto token : command.delegate_tokens) {
-                        std::cout << token << std::endl;
-                    }
                     handle_command(command);
                 }
             }
