@@ -23,11 +23,16 @@ public:
 
     void run() {
         while(true) {
+            // Request a heartbeat. Has a frequency limit.
             network.heartbeat();
+
+            // Cleanup servers that have timed out
             network.cleanup();
 
+            // Listen for messages
             network.get_message();
 
+            // Read and handle commands
             Command command;
             do {
                 command = network.consume_command();
@@ -45,6 +50,8 @@ public:
 
 private:
 
+    // Monitor sent tokens that require a response. So it can be handled approppriately
+    // TODO: Add sender socket to improve I/O
     struct Response {
         long int timestamp;
         std::vector<std::string> sent_tokens;
@@ -94,6 +101,10 @@ private:
             }
 
             network.message(m);
+
+            // These returns typically aren't picked up.
+            // All flow control branches need a return however as
+            //  CMD uses some of then.
             return m.message;
         }
         else if(c == "MSG") {
@@ -129,6 +140,7 @@ private:
 
             network.message(m);
 
+            // Also notify sender
             Message m2;
             m2.to = command.from;
             m2.message = "Message sent";
@@ -176,10 +188,10 @@ private:
             return m.message;
         }
         else if(c == "LISTSERVERS") {
-
             m.to = command.from;
             m.message = "";
             for(auto const& server: network.get_servers()) {
+
                 // show only one hop servers
                 if(server.second.distance == 1) {
                     m.message += server.second.id + ","         + 
@@ -241,10 +253,11 @@ private:
             return m.message;
         }
         else if(c == "KEEPALIVE") {
+
+            // Track server activity
             Server* s = &network.get_server(command.from);
             s->last_comms = network.timestamp();
 
-            std::cout << "Keepalive received" << std::endl;
             return "Heartbeat received";
 
         }
@@ -257,7 +270,7 @@ private:
                 return m.message;
             }
 
-            // Commands intended for are indicated with our ID or no id in the second field
+            // Commands intended for us are indicated with our ID or no id in the second field
             if(command.tokens[1] == "" || command.tokens[1] == server_id) {
                 Command delegate;
                 delegate.from = -1;
@@ -352,6 +365,7 @@ private:
             network.message(m);
 
             // We need a response
+            // Keep a response struct so that the following RSP is allowed through
             if(command.tokens[0] == "CMD") {
                 Response response;
                 response.timestamp = -1;
@@ -368,19 +382,8 @@ private:
         }
     }
 
+    // Specifically handle RSP commands
     std::string handle_response(Command &command) {
-        std::cout << "Handling RSP" << std::endl;
-
-        std::cout << "tokens: " << std::endl;
-        for(auto token : command.tokens) {
-            std::cout << token << std::endl;
-        }
-        std::cout << "Delegates: " << std::endl;
-
-        for(auto token : command.delegate_tokens) {
-            std::cout << token << std::endl;
-        }
-
         std::string c = responses[command.from].sent_tokens[0];
 
         // Use a pointer so that we can modify the object
@@ -393,6 +396,8 @@ private:
             return "Received RSP from an unidentified client";
         }
 
+        // This is a response to an ID request. Code gets a little unorganized as the network is unorganized
+        // in messaging protocols. We need to handle several common methods of transmitting an ID.
         if(c == "ID") {
             int id_index = 0;
 
@@ -424,6 +429,7 @@ private:
         }
         else if(c == "LISTROUTES") {
             // Unable to finish in time :(
+            // Have this instead: http://i.imgur.com/0kvtMLE.gif
 
             // just relays response to first registered client 
             int control_socket = network.get_control_socket();
@@ -444,6 +450,8 @@ private:
         return "RECEIVED RESPONSE";
     }
 
+    // Request and ID from another server using a CMD command.
+    // Create a response struct for tracking
     void request_id(int socket) {
         responses[socket] = {unix_timestamp(), {"ID"}, {}};
 
@@ -454,7 +462,9 @@ private:
     }
 
     bool awaiting_response_from(int fd) {
-        // Is this even necessary?
+        // TODO: Implement
+        // We're currently just trusting the network. If it says an RSP is intended for us,
+        //  we assume that it's a response to a command.
         return true;
         // return responses.count(fd) ? true : false;
     }
