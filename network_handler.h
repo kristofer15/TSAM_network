@@ -47,7 +47,7 @@ public:
         long int last_comms;
     };
 
-    NetworkHandler(int network_port, int info_port, int control_port) {
+    NetworkHandler(int network_port, int info_port, int control_port=4050) {
         this->control_port = control_port;
         this->network_port = network_port;
         this->info_port = info_port;
@@ -350,8 +350,8 @@ public:
         return now;
     }
 
-    int get_control_socket() {
-        return client_sockets["control"][0];
+    std::vector<int> get_control_sockets() {
+        return client_sockets["control"];
     }
 
 private:

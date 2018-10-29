@@ -8,9 +8,9 @@ typedef NetworkHandler::Server Server;
 
 class MainController {
 public:
-    MainController(NetworkHandler &network, UserHandler &users, AccessControl &access, std::string id) :
-        network(network), users(users), access(access), server_id(id) {
-            // this->server_id = "V_Group_51";
+    MainController(NetworkHandler &network, UserHandler &users, AccessControl &access) :
+        network(network), users(users), access(access){
+            this->server_id = "V_Group_51";
             this->md5 = {
                 "ca23ba209cc33678530392b7197fda4d",
                 "a3eaaf35761efa2a09437854e2caf4b3",
@@ -431,18 +431,20 @@ private:
             // Unable to finish in time :(
             // Have this instead: http://i.imgur.com/0kvtMLE.gif
 
-            // just relays response to first registered client 
-            int control_socket = network.get_control_socket();
-            if(control_socket > 0) {
-                Message results;
-                results.to = control_socket;
-                results.message = "";
-                for(auto const& token : command.delegate_tokens) {
-                    if(token != "LISTROUTES") results.message += token;
-                }
-                network.message(results);
+            // just relays response to all registered clients
+            std::vector<int> control_sockets = network.get_control_sockets();
+            Message results;
+            results.message = "";
+            for(auto const& token : command.delegate_tokens) {
+                if(token != "LISTROUTES") results.message += token;
             }
-
+            
+            for(auto const& socket : control_sockets) {
+                if(socket > 0) {
+                    results.to = socket;
+                    network.message(results);
+                }
+            }
             // Response received
             responses.erase(command.from);
         }
