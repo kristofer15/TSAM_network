@@ -61,7 +61,9 @@ public:
         this->info_socket = -1;
         this->top_socket = -1;
 
-        this->server_timeout = 300000; // 5m
+        this->server_timeout = 300; // 5m
+        this->last_heartbeat = 0;
+        this->heartbeat_interval = 60; // 1m
 
         setup_sockets();
     }
@@ -69,11 +71,12 @@ public:
     ~NetworkHandler() {}
 
     Command get_message() {
-        struct timeval t;
-
         Command command;
 
+        struct timeval t;
         t.tv_sec = 10;
+        t.tv_usec = 0;
+
         reset_socket_set();
 
         if(select(top_socket+1, &socket_set, NULL, NULL, &t) < 0) {
@@ -176,8 +179,49 @@ public:
         }
     }
 
-    void heartbeat() {
+    bool heartbeat() {
+        if((timestamp() - last_heartbeat) < heartbeat_interval) {
+            return false;
+        }
 
+        Message m;
+        m.message = "KEEPALIVE";
+
+        for(auto sp : known_servers) {
+            if(sp.second.distance == 1) {
+                m.to = sp.first;
+                message(m);
+            }
+        }
+
+        last_heartbeat = timestamp();
+        return true;
+    }
+
+    // Drop servers that haven't sent comms in too long
+    void cleanup() {
+        std::vector<std::string> erased_1hop_servers;
+
+        // First iteration: Remove 1-hop servers
+        for(auto sp : known_servers) {
+
+            // 1 hop server
+            if(sp.second.distance == 1) {
+                if((timestamp() - sp.second.last_comms) > server_timeout) {
+                    known_servers.erase(sp.first);
+                    erased_1hop_servers.push_back(sp.second.id);
+                }
+            }
+        }
+
+        // Second iteration: Remove servers whose first intermediate is a removed 1-hop server
+        for(auto sp : known_servers) {
+            for(std::string erased_server : erased_1hop_servers) {
+                if(sp.second.intermediates.size() > 0 && sp.second.intermediates[0] == erased_server) {
+                    known_servers.erase(sp.first);
+                }
+            }
+        }
     }
 
     std::map<int, Server> get_servers() {
@@ -208,7 +252,7 @@ public:
         struct hostent *destination;
 
         destination = gethostbyname(ip.c_str());
-        if(destination == NULL) { throw std::runtime_error("Destionation IP unavailable"); }
+        if(destination == NULL) { throw std::runtime_error("Destination IP unavailable"); }
 
         bzero((char *) &destination_in, sizeof(destination_in));
 
@@ -260,6 +304,12 @@ public:
         return server_ip;
     }
 
+    long timestamp() {
+        time_t t = std::time(0);
+        long int now = static_cast<long int> (t);
+        return now;
+    }
+
 private:
     int control_port;
     int control_socket;
@@ -275,13 +325,10 @@ private:
     long int server_timeout;
     std::string server_ip;
 
-    MessageParser message_parser;
+    long int last_heartbeat;
+    long int heartbeat_interval;
 
-    long timestamp() {
-        time_t t = std::time(0);
-        long int now = static_cast<long int> (t);
-        return now;
-    }
+    MessageParser message_parser;
 
     void echo_udp(const Message m) {
         // client info

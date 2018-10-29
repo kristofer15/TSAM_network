@@ -23,6 +23,9 @@ public:
 
     void run() {
         while(true) {
+            network.heartbeat();
+            network.cleanup();
+
             Command command = network.get_message();
 
             if(command.tokens.size() == 0 || command.role == "") {
@@ -227,6 +230,13 @@ private:
             network.message(m);
             return m.message;
         }
+        else if(c == "KEEPALIVE") {
+            Server* s = &network.get_server(command.from);
+            s->last_comms = network.timestamp();
+
+            return "Heartbeat received";
+
+        }
         else if(c == "CMD") {
 
             if(command.tokens.size() < 4) {
@@ -348,7 +358,6 @@ private:
 
     std::string handle_response(Command &command) {
         std::cout << "Handling RSP" << std::endl;
-
 
         std::cout << "tokens: " << std::endl;
         for(auto token : command.tokens) {
